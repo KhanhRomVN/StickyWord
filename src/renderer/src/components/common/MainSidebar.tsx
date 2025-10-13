@@ -11,8 +11,7 @@ import {
   Settings,
   FileText,
   TrendingUp,
-  Tag,
-  Mic
+  Tag
 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -58,11 +57,6 @@ const menuItems: MenuItem[] = [
         label: 'Grammar',
         href: '/collection/grammar',
         icon: Tag
-      },
-      {
-        label: 'Pronunciation',
-        href: '/collection/pronunciation',
-        icon: Mic
       }
     ]
   },

@@ -27,10 +27,6 @@ export const routes: RouteObject[] = [
         element: <CollectionPage />
       },
       {
-        path: 'collection/pronunciation',
-        element: <CollectionPage />
-      },
-      {
         path: 'analytics/statistics',
         element: (
           <div className="p-6">

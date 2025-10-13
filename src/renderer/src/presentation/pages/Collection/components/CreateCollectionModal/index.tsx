@@ -3,15 +3,13 @@ import { useLocation } from 'react-router-dom'
 import CreateWordContent from './components/CreateWordContent'
 import CreatePhraseContent from './components/CreatePhraseContent'
 import CreateGrammarContent from './components/CreateGrammarContent'
-import CreatePronunciationModalContent from './components/CreatePronunciationContent'
-import { vocabulary_item } from '../../types'
-import { pronunciation_item } from '../../types/pronunciation'
+import { vocabulary_item } from '../../types/vocabulary'
 import { grammar_item } from '../../types/grammar'
 
 interface CreateCollectionModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreateSuccess?: (items: vocabulary_item[] | pronunciation_item[] | grammar_item[]) => void
+  onCreateSuccess?: (items: vocabulary_item[] | grammar_item[]) => void
 }
 
 type CollectionType = 'words' | 'phrases' | 'grammar' | 'pronunciation'
@@ -62,14 +60,6 @@ const CreateCollectionModal = ({
 
       {collectionType === 'grammar' && (
         <CreateGrammarContent
-          isOpen={isOpen}
-          onClose={onClose}
-          onCreateSuccess={handleCreateSuccess}
-        />
-      )}
-
-      {collectionType === 'pronunciation' && (
-        <CreatePronunciationModalContent
           isOpen={isOpen}
           onClose={onClose}
           onCreateSuccess={handleCreateSuccess}
