@@ -10,9 +10,9 @@ import {
   Home,
   Settings,
   FileText,
-  Mic,
+  TrendingUp,
   Tag,
-  TrendingUp
+  Mic
 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 

@@ -28,22 +28,27 @@ const CollectionListPanel = ({
   // Update filter when defaultFilterType changes
   useEffect(() => {
     setFilterType(defaultFilterType)
-  }, [defaultFilterType])
+  }, [defaultFilterType, location.pathname])
+
+  // Reload items when filter type changes
+  useEffect(() => {
+    loadItems(filterType)
+  }, [filterType])
 
   // Load items from database on mount (mock for now)
   useEffect(() => {
-    loadItems()
+    loadItems('all')
   }, [])
 
-  const loadItems = async () => {
+  const loadItems = async (filter?: 'all' | vocabulary_item['item_type']) => {
     try {
       setIsLoading(true)
       // TODO: Replace with actual API call
-      // const response = await window.api.database.getVocabularyItems()
+      // const response = await window.api.database.getVocabularyItems(filter)
       // setItems(response)
 
       // Mock data - sẽ thay thế bằng API thật
-      const sampleItems: vocabulary_item[] = [
+      const allItems: vocabulary_item[] = [
         {
           id: '1',
           item_type: 'word',
@@ -161,59 +166,6 @@ const CollectionListPanel = ({
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-3 py-2 bg-card-background border border-border-default rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-text-primary placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all"
           />
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="flex gap-2 overflow-x-auto">
-          {(['all', 'word', 'phrase', 'grammar'] as const).map((type) => {
-            const labels = {
-              all: 'Tất cả',
-              word: 'Từ',
-              phrase: 'Cụm từ',
-              grammar: 'Ngữ pháp'
-            }
-
-            const isActive = filterType === type
-            return (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  isActive
-                    ? 'bg-primary text-white'
-                    : 'bg-card-background text-text-secondary hover:text-text-primary border border-border-default'
-                }`}
-              >
-                {labels[type]}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Sort Options */}
-        <div className="flex gap-2 text-xs">
-          {(['newest', 'oldest', 'content'] as const).map((sort) => {
-            const labels = {
-              newest: 'Mới nhất',
-              oldest: 'Cũ nhất',
-              content: 'A-Z'
-            }
-
-            const isActive = sortBy === sort
-            return (
-              <button
-                key={sort}
-                onClick={() => setSortBy(sort)}
-                className={`px-2 py-1 rounded transition-all ${
-                  isActive
-                    ? 'bg-primary/20 text-primary'
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
-              >
-                {labels[sort]}
-              </button>
-            )
-          })}
         </div>
       </div>
 

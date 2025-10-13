@@ -4,7 +4,7 @@ import { MainSidebar } from '../../components/common/MainSidebar'
 const MainLayout = () => {
   return (
     <div className="flex min-h-screen bg-sidebar-background">
-      <MainSidebar />
+      <MainSidebar className="border-r border-border-default" />
 
       {/* Main content */}
       <div className="flex-1 pl-72 flex flex-col h-screen overflow-hidden">
