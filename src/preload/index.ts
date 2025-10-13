@@ -9,7 +9,14 @@ const api = {
     closeDatabase: () => ipcRenderer.invoke('sqlite:close'),
     runQuery: (query: string, params?: any[]) => ipcRenderer.invoke('sqlite:run', query, params),
     getAllRows: (query: string, params?: any[]) => ipcRenderer.invoke('sqlite:all', query, params),
-    getOneRow: (query: string, params?: any[]) => ipcRenderer.invoke('sqlite:get', query, params)
+    getOneRow: (query: string, params?: any[]) => ipcRenderer.invoke('sqlite:get', query, params),
+    status: () => ipcRenderer.invoke('sqlite:status')
+  },
+  vocabulary: {
+    save: (item: any) => ipcRenderer.invoke('vocabulary:save', item),
+    getAll: (filterType?: string) => ipcRenderer.invoke('vocabulary:getAll', filterType),
+    delete: (id: string) => ipcRenderer.invoke('vocabulary:delete', id),
+    update: (item: any) => ipcRenderer.invoke('vocabulary:update', item)
   },
   fileSystem: {
     showSaveDialog: (options: any) => ipcRenderer.invoke('dialog:save', options),

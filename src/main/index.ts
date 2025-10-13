@@ -17,6 +17,77 @@ const getStorageFilePath = () => {
   return path.join(userDataPath, 'email-manager-config.json')
 }
 
+// Initialize database schema
+const initializeDatabaseSchema = async (database: Database): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    database.serialize(() => {
+      // Create vocabulary_item table
+      database.run(
+        `CREATE TABLE IF NOT EXISTS vocabulary_item (
+          id TEXT PRIMARY KEY,
+          item_type TEXT NOT NULL,
+          content TEXT NOT NULL,
+          pronunciation TEXT,
+          difficulty_level INTEGER,
+          frequency_rank INTEGER,
+          category TEXT,
+          tags TEXT,
+          metadata TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`,
+        (err) => {
+          if (err) {
+            console.error('Error creating vocabulary_item table:', err)
+            reject(err)
+          }
+        }
+      )
+
+      // Create definitions table
+      database.run(
+        `CREATE TABLE IF NOT EXISTS definition (
+          id TEXT PRIMARY KEY,
+          vocabulary_item_id TEXT NOT NULL,
+          meaning TEXT NOT NULL,
+          translation TEXT,
+          word_type TEXT,
+          phrase_type TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (vocabulary_item_id) REFERENCES vocabulary_item(id)
+        )`,
+        (err) => {
+          if (err) {
+            console.error('Error creating definition table:', err)
+            reject(err)
+          }
+        }
+      )
+
+      // Create examples table
+      database.run(
+        `CREATE TABLE IF NOT EXISTS example (
+          id TEXT PRIMARY KEY,
+          definition_id TEXT NOT NULL,
+          sentence TEXT NOT NULL,
+          translation TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (definition_id) REFERENCES definition(id)
+        )`,
+        (err) => {
+          if (err) {
+            console.error('Error creating example table:', err)
+            reject(err)
+          } else {
+            console.log('[Main] Database schema initialized successfully')
+            resolve()
+          }
+        }
+      )
+    })
+  })
+}
+
 function createWindow(): void {
   // Create the browser window.
   mainWindow = new BrowserWindow({
@@ -144,6 +215,13 @@ function setupStorageHandlers() {
 
 // Setup IPC handlers for database operations
 function setupDatabaseHandlers() {
+  // Check database connection status
+  ipcMain.handle('sqlite:status', async () => {
+    return {
+      isConnected: db !== null,
+      message: db ? 'Database connected' : 'Database not connected'
+    }
+  })
   // Dialog handlers
   ipcMain.handle('dialog:save', async (_event, options) => {
     if (!mainWindow) throw new Error('Main window not available')
@@ -354,17 +432,197 @@ function setupDatabaseHandlers() {
       throw error
     }
   })
+
+  // Vocabulary CRUD operations
+  ipcMain.handle('vocabulary:save', async (_event, item: any) => {
+    try {
+      if (!db) throw new Error('Database not connected')
+
+      const query = `
+        INSERT INTO vocabulary_item (
+          id, item_type, content, pronunciation,
+          difficulty_level, frequency_rank, category, tags, metadata,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `
+
+      const params = [
+        item.id,
+        item.item_type,
+        item.content,
+        item.pronunciation || null,
+        item.difficulty_level || null,
+        item.frequency_rank || null,
+        item.category || null,
+        item.tags ? JSON.stringify(item.tags) : null,
+        item.metadata ? JSON.stringify(item.metadata) : null,
+        item.created_at,
+        item.updated_at
+      ]
+
+      return new Promise((resolve, reject) => {
+        db!.run(query, params, function (err) {
+          if (err) {
+            reject(err)
+          } else {
+            resolve({ id: item.id, changes: this.changes })
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error saving vocabulary item:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('vocabulary:getAll', async (_event, filterType?: string) => {
+    try {
+      if (!db) throw new Error('Database not connected')
+
+      let query = 'SELECT * FROM vocabulary_item'
+      const params: any[] = []
+
+      if (filterType && filterType !== 'all') {
+        query += ' WHERE item_type = ?'
+        params.push(filterType)
+      }
+
+      query += ' ORDER BY created_at DESC'
+
+      return new Promise((resolve, reject) => {
+        db!.all(query, params, (err, rows: any[]) => {
+          if (err) {
+            reject(err)
+          } else {
+            // Parse JSON fields
+            const items = rows.map((row) => ({
+              ...row,
+              tags: row.tags ? JSON.parse(row.tags) : [],
+              metadata: row.metadata ? JSON.parse(row.metadata) : {}
+            }))
+            resolve(items)
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error getting vocabulary items:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('vocabulary:delete', async (_event, id: string) => {
+    try {
+      if (!db) throw new Error('Database not connected')
+
+      const query = 'DELETE FROM vocabulary_item WHERE id = ?'
+
+      return new Promise((resolve, reject) => {
+        db!.run(query, [id], function (err) {
+          if (err) {
+            reject(err)
+          } else {
+            resolve({ changes: this.changes })
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error deleting vocabulary item:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('vocabulary:update', async (_event, item: any) => {
+    try {
+      if (!db) throw new Error('Database not connected')
+
+      const query = `
+        UPDATE vocabulary_item SET
+          content = ?,
+          pronunciation = ?,
+          difficulty_level = ?,
+          frequency_rank = ?,
+          category = ?,
+          tags = ?,
+          metadata = ?,
+          updated_at = ?
+        WHERE id = ?
+      `
+
+      const params = [
+        item.content,
+        item.pronunciation || null,
+        item.difficulty_level || null,
+        item.frequency_rank || null,
+        item.category || null,
+        item.tags ? JSON.stringify(item.tags) : null,
+        item.metadata ? JSON.stringify(item.metadata) : null,
+        new Date().toISOString(),
+        item.id
+      ]
+
+      return new Promise((resolve, reject) => {
+        db!.run(query, params, function (err) {
+          if (err) {
+            reject(err)
+          } else {
+            resolve({ changes: this.changes })
+          }
+        })
+      })
+    } catch (error) {
+      console.error('Error updating vocabulary item:', error)
+      throw error
+    }
+  })
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
   // Setup IPC handlers
   setupStorageHandlers()
   setupDatabaseHandlers()
+
+  // Initialize default database
+  try {
+    const userDataPath = app.getPath('userData')
+    const dbPath = path.join(userDataPath, 'stickyword.db')
+
+    // Ensure userData directory exists
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true })
+    }
+
+    // Create or open database
+    await new Promise<void>((resolve, reject) => {
+      db = new sqlite3.Database(
+        dbPath,
+        sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
+        async (err) => {
+          if (err) {
+            console.error('Error initializing database:', err)
+            reject(err)
+          } else {
+            console.log('[Main] Database initialized at:', dbPath)
+            try {
+              // Initialize schema
+              await initializeDatabaseSchema(db!)
+              console.log('[Main] Database schema initialized')
+              resolve()
+            } catch (schemaError) {
+              console.error('[Main] Error initializing schema:', schemaError)
+              reject(schemaError)
+            }
+          }
+        }
+      )
+    })
+  } catch (error) {
+    console.error('[Main] Failed to initialize database:', error)
+  }
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
-import { vocabulary_item } from '../../types'
+import { vocabulary_item } from '../../types/vocabulary'
+import { grammar_item } from '../../types/grammar'
 import CollectionCard from './components/CollectionCard'
 import CreateCollectionModal from '../CreateCollectionModal'
 import CustomButton from '../../../../../components/common/CustomButton'
 import { Plus, Search } from 'lucide-react'
 
 interface CollectionListPanelProps {
-  onSelectItem: (item: vocabulary_item) => void
+  onSelectItem: (item: vocabulary_item | null) => void
   selectedItem: vocabulary_item | null
   defaultFilterType?: 'all' | vocabulary_item['item_type']
 }
@@ -20,7 +21,7 @@ const CollectionListPanel = ({
   const [filterType, setFilterType] = useState<'all' | vocabulary_item['item_type']>(
     defaultFilterType
   )
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'content'>('newest')
+  const [sortBy] = useState<'newest' | 'oldest' | 'content'>('newest')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [items, setItems] = useState<vocabulary_item[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -28,69 +29,32 @@ const CollectionListPanel = ({
   // Update filter when defaultFilterType changes
   useEffect(() => {
     setFilterType(defaultFilterType)
-  }, [defaultFilterType, location.pathname])
+  }, [defaultFilterType])
 
   // Reload items when filter type changes
   useEffect(() => {
     loadItems(filterType)
   }, [filterType])
 
-  // Load items from database on mount (mock for now)
+  // Load items from database on mount
   useEffect(() => {
     loadItems('all')
   }, [])
 
-  const loadItems = async (filter?: 'all' | vocabulary_item['item_type']) => {
+  const loadItems = async (filter: 'all' | vocabulary_item['item_type']) => {
     try {
       setIsLoading(true)
       // TODO: Replace with actual API call
-      // const response = await window.api.database.getVocabularyItems(filter)
-      // setItems(response)
-
-      // Mock data - sẽ thay thế bằng API thật
-      const allItems: vocabulary_item[] = [
-        {
-          id: '1',
-          item_type: 'word',
-          content: 'perseverance',
-          pronunciation: 'pur-suh-veer-uhns',
-          ipa_notation: '/ˌpɜːrsəˈvɪrəns/',
-          word_type: 'noun',
-          created_at: '2024-01-15T10:30:00Z',
-          updated_at: '2024-01-15T10:30:00Z'
-        },
-        {
-          id: '2',
-          item_type: 'phrase',
-          content: 'break the ice',
-          pronunciation: 'breyk thee ahys',
-          ipa_notation: '/breɪk ðə aɪs/',
-          phrase_type: 'idiom',
-          created_at: '2024-01-14T14:20:00Z',
-          updated_at: '2024-01-14T14:20:00Z'
-        },
-        {
-          id: '3',
-          item_type: 'grammar',
-          content: 'Present Perfect Continuous',
-          grammar_type: 'tense',
-          created_at: '2024-01-13T09:15:00Z',
-          updated_at: '2024-01-13T09:15:00Z'
-        },
-        {
-          id: '4',
-          item_type: 'word',
-          content: 'resilient',
-          pronunciation: 'ri-zil-yuhnt',
-          ipa_notation: '/rɪˈzɪljənt/',
-          word_type: 'adjective',
-          created_at: '2024-01-12T16:45:00Z',
-          updated_at: '2024-01-12T16:45:00Z'
-        }
-      ]
-      setItems(sampleItems)
+      if (window.api?.vocabulary?.getAll) {
+        const response = await window.api.vocabulary.getAll(filter)
+        setItems(response)
+      } else {
+        // Fallback to empty array if API not available
+        setItems([])
+      }
     } catch (error) {
       console.error('[CollectionListPanel] Error loading items:', error)
+      setItems([])
     } finally {
       setIsLoading(false)
     }
@@ -120,22 +84,31 @@ const CollectionListPanel = ({
     return filtered
   }, [items, searchTerm, filterType, sortBy])
 
-  const handleCreateSuccess = (newItems: vocabulary_item[]) => {
-    // TODO: Save to database
-    // await window.api.database.saveVocabularyItems(newItems)
+  const handleCreateSuccess = async (newItems: vocabulary_item[] | grammar_item[]) => {
+    try {
+      console.log('[CollectionListPanel] Saving items to database:', newItems)
+      console.log('[CollectionListPanel] First item details:', JSON.stringify(newItems[0], null, 2))
 
-    // For now, just add to local state
-    setItems((prev) => [...prev, ...newItems])
-    setIsCreateModalOpen(false)
-  }
+      // Lưu từng item vào SQLite database
+      for (const item of newItems) {
+        console.log('[CollectionListPanel] Attempting to save item:', item.id)
+        if (window.api?.vocabulary?.save) {
+          const result = await window.api.vocabulary.save(item)
+          console.log('[CollectionListPanel] Save result:', result)
+        }
+      }
 
-  const handleDeleteItem = (itemId: string) => {
-    // TODO: Delete from database
-    // await window.api.database.deleteVocabularyItem(itemId)
+      // Reload danh sách từ database
+      await loadItems(filterType)
+      setIsCreateModalOpen(false)
 
-    setItems((prev) => prev.filter((item) => item.id !== itemId))
-    if (selectedItem?.id === itemId) {
-      onSelectItem(null)
+      console.log('[CollectionListPanel] Items saved successfully')
+    } catch (error) {
+      const err = error as Error
+      console.error('[CollectionListPanel] Error saving items - Full error:', error)
+      console.error('[CollectionListPanel] Error message:', err?.message)
+      console.error('[CollectionListPanel] Error stack:', err?.stack)
+      alert(`Lỗi khi lưu dữ liệu: ${err?.message || 'Unknown error'}`)
     }
   }
 
@@ -204,7 +177,6 @@ const CollectionListPanel = ({
                 item={item}
                 isSelected={selectedItem?.id === item.id}
                 onClick={() => onSelectItem(item)}
-                onDelete={() => handleDeleteItem(item.id)}
               />
             ))}
           </div>

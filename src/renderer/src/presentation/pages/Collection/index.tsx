@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import CollectionListPanel from './components/CollectionListPanel'
 import CollectionDetailPanel from './components/CollectionDetailPanel'
-import { vocabulary_item } from './types'
+import { vocabulary_item } from './types/vocabulary'
 
 const CollectionPage = () => {
   const [selectedItem, setSelectedItem] = useState<vocabulary_item | null>(null)
@@ -16,10 +16,6 @@ const CollectionPage = () => {
       setFilterType('word')
     } else if (path.includes('/content/phrases')) {
       setFilterType('phrase')
-    } else if (path.includes('/content/grammar')) {
-      setFilterType('grammar')
-    } else if (path.includes('/content/pronunciation')) {
-      setFilterType('all') // hoặc có thể thêm logic riêng cho pronunciation
     } else {
       setFilterType('all')
     }

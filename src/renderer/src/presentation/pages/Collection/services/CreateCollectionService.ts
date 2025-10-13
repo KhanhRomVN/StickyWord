@@ -1,5 +1,3 @@
-// src/renderer/src/presentation/pages/Collection/services/CreateCollectionService.ts
-
 export interface GeminiConfig {
   apiKey: string
   model?: string

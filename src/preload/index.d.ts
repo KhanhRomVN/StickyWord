@@ -9,6 +9,13 @@ interface API {
     runQuery: (query: string, params?: any[]) => Promise<any>
     getAllRows: (query: string, params?: any[]) => Promise<any>
     getOneRow: (query: string, params?: any[]) => Promise<any>
+    status: () => Promise<{ isConnected: boolean; message: string }>
+  }
+  vocabulary: {
+    save: (item: any) => Promise<any>
+    getAll: (filterType?: string) => Promise<any[]>
+    delete: (id: string) => Promise<any>
+    update: (item: any) => Promise<any>
   }
   fileSystem: {
     showSaveDialog: (options: any) => Promise<any>

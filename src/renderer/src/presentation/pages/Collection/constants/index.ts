@@ -5,11 +5,11 @@ export const COLLECTION_TYPES = {
 } as const
 
 export const DIFFICULTY_LEVELS = [
-  { value: 1, label: 'Rất dễ', color: 'text-green-500' },
-  { value: 2, label: 'Dễ', color: 'text-green-400' },
-  { value: 3, label: 'Trung bình', color: 'text-yellow-500' },
-  { value: 4, label: 'Khá khó', color: 'text-orange-500' },
-  { value: 5, label: 'Khó', color: 'text-red-500' }
+  { value: 1, label: 'Very easy', color: 'text-green-500' },
+  { value: 2, label: 'Easy', color: 'text-green-400' },
+  { value: 3, label: 'Medium', color: 'text-yellow-500' },
+  { value: 4, label: 'Quite difficult', color: 'text-orange-500' },
+  { value: 5, label: 'Difficult', color: 'text-red-500' }
 ] as const
 
 export const WORD_TYPES = [

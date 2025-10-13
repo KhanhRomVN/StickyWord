@@ -12,6 +12,7 @@ export interface vocabulary_item {
   created_at: string
   updated_at: string
 }
+
 // === DEFINITIONS & EXAMPLES ===
 export interface definition {
   id: string

@@ -1,4 +1,4 @@
-import { vocabulary_item } from '../../../types'
+import { vocabulary_item } from '../../../types/vocabulary'
 
 interface CollectionCardProps {
   item: vocabulary_item
@@ -36,11 +36,11 @@ const CollectionCard = ({ item, isSelected, onClick }: CollectionCardProps) => {
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'word':
-        return 'Từ'
+        return 'Word'
       case 'phrase':
-        return 'Cụm từ'
+        return 'Phrase'
       case 'grammar':
-        return 'Ngữ pháp'
+        return 'Grammar'
       default:
         return 'Khác'
     }
@@ -66,17 +66,6 @@ const CollectionCard = ({ item, isSelected, onClick }: CollectionCardProps) => {
           {getTypeLabel(item.item_type)}
         </span>
       </div>
-
-      {(item.pronunciation || item.ipa_notation) && (
-        <div className="flex items-center gap-2 mb-2">
-          {item.pronunciation && (
-            <span className="text-sm text-text-secondary">{item.pronunciation}</span>
-          )}
-          {item.ipa_notation && (
-            <span className="text-sm text-text-secondary font-mono">{item.ipa_notation}</span>
-          )}
-        </div>
-      )}
 
       <div className="flex items-center justify-between text-xs text-text-secondary">
         <span>

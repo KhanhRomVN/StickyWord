@@ -1,4 +1,4 @@
-import { vocabulary_item } from '../types'
+import { vocabulary_item } from '../types/vocabulary'
 
 export const filterItemsByType = (
   items: vocabulary_item[],
@@ -14,9 +14,7 @@ export const searchItems = (items: vocabulary_item[], searchTerm: string): vocab
   const term = searchTerm.toLowerCase()
   return items.filter(
     (item) =>
-      item.content.toLowerCase().includes(term) ||
-      item.pronunciation?.toLowerCase().includes(term) ||
-      item.ipa_notation?.toLowerCase().includes(term)
+      item.content.toLowerCase().includes(term) || item.pronunciation?.toLowerCase().includes(term)
   )
 }
 

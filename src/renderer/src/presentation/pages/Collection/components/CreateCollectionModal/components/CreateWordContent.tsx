@@ -12,6 +12,19 @@ import {
   AIWordResult
 } from '../../../services/CreateCollectionService'
 
+const WORD_TYPES = [
+  { value: 'noun', label: 'Noun' },
+  { value: 'verb', label: 'Verb' },
+  { value: 'adjective', label: 'Adjective' },
+  { value: 'adverb', label: 'Adverb' },
+  { value: 'pronoun', label: 'Pronoun' },
+  { value: 'preposition', label: 'Preposition' },
+  { value: 'conjunction', label: 'Conjunction' },
+  { value: 'interjection', label: 'Interjection' },
+  { value: 'determiner', label: 'Determiner' },
+  { value: 'exclamation', label: 'Exclamation' }
+]
+
 interface CreateWordContentProps {
   isOpen: boolean
   onClose: () => void
@@ -36,19 +49,6 @@ interface WordFormData {
   tags: string[]
   metadata: Record<string, any>
 }
-
-const WORD_TYPES = [
-  { value: 'noun', label: 'Noun' },
-  { value: 'verb', label: 'Verb' },
-  { value: 'adjective', label: 'Adjective' },
-  { value: 'adverb', label: 'Adverb' },
-  { value: 'pronoun', label: 'Pronoun' },
-  { value: 'preposition', label: 'Preposition' },
-  { value: 'conjunction', label: 'Conjunction' },
-  { value: 'interjection', label: 'Interjection' },
-  { value: 'determiner', label: 'Determiner' },
-  { value: 'exclamation', label: 'Exclamation' }
-]
 
 const DIFFICULTY_LEVELS = [
   { value: '1', label: 'Level 1 - Very Easy' },
@@ -88,8 +88,9 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
   const [formData, setFormData] = useState<WordFormData>({
     content: '',
     pronunciation: '',
-    wordType: '',
-    definitions: [{ meaning: '', translation: '', examples: [{ sentence: '', translation: '' }] }],
+    definitions: [
+      { meaning: '', translation: '', wordType: '', examples: [{ sentence: '', translation: '' }] }
+    ],
     difficulty_level: 0,
     frequency_rank: 0,
     category: '',
@@ -148,7 +149,12 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
       ...prev,
       definitions: [
         ...prev.definitions,
-        { meaning: '', translation: '', examples: [{ sentence: '', translation: '' }] }
+        {
+          meaning: '',
+          translation: '',
+          wordType: '',
+          examples: [{ sentence: '', translation: '' }]
+        }
       ]
     }))
   }
@@ -295,18 +301,24 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
       return
     }
 
+    // Chuyển definitions từ form vào metadata để lưu trữ
+    const metadataWithDefinitions = {
+      ...formData.metadata,
+      definitions: formData.definitions
+    }
+
     const newItem: vocabulary_item = {
       id: `vocab_${Date.now()}`,
       item_type: 'word',
       content: formData.content.trim(),
       pronunciation: formData.pronunciation || undefined,
-      // word_type đã chuyển xuống definition, không còn ở đây
       difficulty_level:
         formData.difficulty_level > 0 ? (formData.difficulty_level as any) : undefined,
       frequency_rank: formData.frequency_rank > 0 ? (formData.frequency_rank as any) : undefined,
       category: formData.category || undefined,
       tags: formData.tags.length > 0 ? formData.tags : undefined,
-      metadata: Object.keys(formData.metadata).length > 0 ? formData.metadata : undefined,
+      metadata:
+        Object.keys(metadataWithDefinitions).length > 0 ? metadataWithDefinitions : undefined,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -495,6 +507,15 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
                       </button>
                     )}
                   </div>
+
+                  <CustomCombobox
+                    label="Word Type"
+                    value={def.wordType || ''}
+                    options={WORD_TYPES}
+                    onChange={(val) => handleWordTypeChange(defIndex, val)}
+                    placeholder="Select word type"
+                    size="sm"
+                  />
 
                   <CustomInput
                     type="text"
