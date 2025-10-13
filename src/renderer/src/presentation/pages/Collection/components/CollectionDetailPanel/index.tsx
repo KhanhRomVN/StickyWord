@@ -69,16 +69,7 @@ const CollectionDetailPanel = ({ selectedItem }: CollectionDetailPanelProps) => 
           <span className="px-2 py-1 bg-primary/20 text-primary rounded text-xs font-medium capitalize">
             {selectedItem.item_type}
           </span>
-          {selectedItem.word_type && (
-            <span className="px-2 py-1 bg-blue-500/20 text-blue-600 rounded text-xs font-medium capitalize">
-              {selectedItem.word_type}
-            </span>
-          )}
-          {selectedItem.phrase_type && (
-            <span className="px-2 py-1 bg-green-500/20 text-green-600 rounded text-xs font-medium capitalize">
-              {selectedItem.phrase_type}
-            </span>
-          )}
+          {/* word_type và phrase_type đã chuyển xuống definition, không còn hiển thị ở đây */}
           {selectedItem.grammar_type && (
             <span className="px-2 py-1 bg-purple-500/20 text-purple-600 rounded text-xs font-medium capitalize">
               {selectedItem.grammar_type}

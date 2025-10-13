@@ -12,6 +12,8 @@ export interface GeminiConfig {
 export interface WordDefinition {
   meaning: string
   translation: string
+  wordType?: string // Thêm word_type vào definition
+  phraseType?: string // Thêm phrase_type vào definition
   examples: Array<{
     sentence: string
     translation: string
@@ -23,6 +25,11 @@ export interface AIWordResult {
   ipaNotation: string
   wordType: string
   pronunciation?: string
+  difficulty_level?: number
+  frequency_rank?: number
+  category?: string
+  tags?: string[]
+  metadata?: Record<string, any>
   definitions: WordDefinition[]
 }
 
@@ -168,10 +175,27 @@ Return information in this JSON structure:
       "pronunciation": "simple pronunciation guide (e.g., per-suh-veer-uhns)",
       "ipaNotation": "IPA notation with / / (e.g., /ˌpɜːrsəˈvɪrəns/)",
       "wordType": "noun|verb|adjective|adverb|pronoun|preposition|conjunction|interjection|determiner|exclamation",
+      "difficulty_level": 1-10 (1=very easy, 10=very hard),
+      "frequency_rank": 1-10 (1=very rare, 10=very common),
+      "category": "business|daily|travel|academic",
+      "tags": ["tag1", "tag2", "tag3"],
+      "metadata": {
+        "etymology": "word origin and history",
+        "synonyms": ["synonym1", "synonym2", "synonym3"],
+        "antonyms": ["antonym1", "antonym2"],
+        "common_phrases": ["phrase1", "phrase2", "phrase3"],
+        "word_family": ["related1", "related2", "related3"],
+        "learning_tip": "helpful tip for remembering this word",
+        "register": "formal/informal/neutral",
+        "collocations": ["collocation1", "collocation2"],
+        "mnemonic": "memory trick to remember",
+        "usage_note": "special usage notes"
+      },
       "definitions": [
         {
           "meaning": "Clear English definition",
           "translation": "Accurate Vietnamese translation (nghĩa tiếng Việt)",
+          "wordType": "noun|verb|adjective|adverb|etc",
           "examples": [
             {
               "sentence": "Natural example sentence in English",
@@ -193,6 +217,14 @@ IMPORTANT RULES:
 - Vietnamese translations must be accurate and natural
 - IPA notation must use proper format: /ˌpɜːrsəˈvɪrəns/
 - Simple pronunciation: per-suh-veer-uhns
+- difficulty_level (1-10), frequency_rank (1-10), category, and tags are REQUIRED fields
+- Tags should be relevant to the word (e.g., ["formal", "business", "common", "academic"])
+- metadata is a FLAT object with simple key-value pairs (NO nested objects)
+- Use ONLY these data types: string, number, boolean, array
+- Be creative with field names! Examples: etymology, mnemonic, register, usage_note, collocations, word_family, etc.
+- Arrays should contain simple strings only
+- NO nested objects inside metadata
+- More metadata fields = better learning experience
 - Return ONLY valid JSON, no other text
 - Examples should be practical and common usage`
   }
@@ -216,6 +248,7 @@ For EACH word, return information in this JSON structure:
         {
           "meaning": "Clear English definition",
           "translation": "Accurate Vietnamese translation (nghĩa tiếng Việt)",
+          "wordType": "noun|verb|adjective|adverb|etc",
           "examples": [
             {
               "sentence": "Natural example sentence in English",
@@ -233,11 +266,17 @@ For EACH word, return information in this JSON structure:
 }
 
 IMPORTANT RULES:
-- Return information for ALL ${words.length} words
+- Return information for ALL ${words.length} wordsexport interface AIWordResult {
 - Each word must have at least 1 definition with 2 examples
 - Vietnamese translations must be accurate and natural
 - IPA notation must use proper format: /ˌpɜːrsəˈvɪrəns/
 - Simple pronunciation: per-suh-veer-uhns
+- Metadata is a FLEXIBLE object - be creative with field names and data types
+- Include difficulty_level (1-10), frequency_rank (1-10), category, tags
+- Add ANY other helpful fields: etymology, mnemonics, usage patterns, cultural context, etc.
+- Use various data types: strings, numbers, booleans, arrays, nested objects
+- More comprehensive metadata = better learning experience
+- Tags should be relevant to each word
 - Return ONLY valid JSON, no other text
 - Examples should be practical and common usage`
   }

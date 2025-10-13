@@ -1,8 +1,10 @@
 import { useState, useCallback, useMemo } from 'react'
-import { Wand2, Plus, Trash2, X } from 'lucide-react'
+import { Wand2, Plus, Trash2 } from 'lucide-react'
 import CustomModal from '../../../../../../components/common/CustomModal'
 import CustomInput from '../../../../../../components/common/CustomInput'
+import CustomTag from '../../../../../../components/common/CustomTag'
 import CustomCombobox from '../../../../../../components/common/CustomCombobox'
+import Metadata from '../../../../../../components/common/Metadata'
 import { vocabulary_item } from '../../../types/vocabulary'
 import { useGeminiApiKeys } from '../../../../../../hooks/useGeminiApiKeys'
 import {
@@ -10,7 +12,7 @@ import {
   AIWordResult
 } from '../../../services/CreateCollectionService'
 
-interface CreateWordModalProps {
+interface CreateWordContentProps {
   isOpen: boolean
   onClose: () => void
   onCreateSuccess?: (items: vocabulary_item[]) => void
@@ -19,21 +21,20 @@ interface CreateWordModalProps {
 interface WordFormData {
   content: string
   pronunciation?: string
-  wordType?: string
   definitions: Array<{
     meaning: string
     translation?: string
+    wordType?: string // Di chuyển word_type vào definition
     examples: Array<{
       sentence: string
       translation?: string
     }>
   }>
-  metadata: {
-    difficulty_level: number
-    frequency_rank: number
-    category: string
-    tags: string[]
-  }
+  difficulty_level: number
+  frequency_rank: number
+  category: string
+  tags: string[]
+  metadata: Record<string, any>
 }
 
 const WORD_TYPES = [
@@ -82,36 +83,21 @@ const CATEGORIES = [
   { value: 'academic', label: 'Academic' }
 ]
 
-const COMMON_TAGS = [
-  'formal',
-  'informal',
-  'british',
-  'american',
-  'spoken',
-  'written',
-  'common',
-  'rare',
-  'technical',
-  'casual'
-]
-
-const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalProps) => {
+const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordContentProps) => {
   const { apiKeys } = useGeminiApiKeys()
   const [formData, setFormData] = useState<WordFormData>({
     content: '',
     pronunciation: '',
     wordType: '',
     definitions: [{ meaning: '', translation: '', examples: [{ sentence: '', translation: '' }] }],
-    metadata: {
-      difficulty_level: 5,
-      frequency_rank: 5,
-      category: 'daily',
-      tags: []
-    }
+    difficulty_level: 0,
+    frequency_rank: 0,
+    category: '',
+    tags: [],
+    metadata: {}
   })
   const [isLoadingAI, setIsLoadingAI] = useState(false)
   const [aiError, setAiError] = useState('')
-  const [tagInput, setTagInput] = useState('')
 
   const hasApiKeys = useMemo(() => apiKeys.length > 0, [apiKeys])
 
@@ -124,11 +110,15 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
     setFormData((prev) => ({ ...prev, pronunciation: value }))
   }
 
-  const handleWordTypeChange = (value: string | string[]) => {
-    setFormData((prev) => ({
-      ...prev,
-      wordType: typeof value === 'string' ? value : value[0] || ''
-    }))
+  const handleWordTypeChange = (defIndex: number, value: string | string[]) => {
+    setFormData((prev) => {
+      const newDefs = [...prev.definitions]
+      newDefs[defIndex] = {
+        ...newDefs[defIndex],
+        wordType: typeof value === 'string' ? value : value[0] || ''
+      }
+      return { ...prev, definitions: newDefs }
+    })
   }
 
   const handleDefinitionChange = (defIndex: number, field: string, value: string) => {
@@ -196,45 +186,39 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
     }
   }
 
-  const handleMetadataChange = (field: string, value: any) => {
+  const handleDifficultyChange = (value: string | string[]) => {
     setFormData((prev) => ({
       ...prev,
-      metadata: {
-        ...prev.metadata,
-        [field]: value
-      }
+      difficulty_level: parseInt(typeof value === 'string' ? value : value[0])
     }))
   }
 
-  const handleAddTag = (tag: string) => {
-    const trimmedTag = tag.trim().toLowerCase()
-    if (trimmedTag && !formData.metadata.tags.includes(trimmedTag)) {
-      setFormData((prev) => ({
-        ...prev,
-        metadata: {
-          ...prev.metadata,
-          tags: [...prev.metadata.tags, trimmedTag]
-        }
-      }))
-      setTagInput('')
-    }
-  }
-
-  const handleRemoveTag = (tagToRemove: string) => {
+  const handleFrequencyChange = (value: string | string[]) => {
     setFormData((prev) => ({
       ...prev,
-      metadata: {
-        ...prev.metadata,
-        tags: prev.metadata.tags.filter((tag) => tag !== tagToRemove)
-      }
+      frequency_rank: parseInt(typeof value === 'string' ? value : value[0])
     }))
   }
 
-  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
-      e.preventDefault()
-      handleAddTag(tagInput)
-    }
+  const handleCategoryChange = (value: string | string[]) => {
+    setFormData((prev) => ({
+      ...prev,
+      category: typeof value === 'string' ? value : value[0]
+    }))
+  }
+
+  const handleTagsChange = (newTags: string[]) => {
+    setFormData((prev) => ({
+      ...prev,
+      tags: newTags
+    }))
+  }
+
+  const handleMetadataChange = (newMetadata: Record<string, any>) => {
+    setFormData((prev) => ({
+      ...prev,
+      metadata: newMetadata
+    }))
   }
 
   const fetchAIInfo = useCallback(async () => {
@@ -253,33 +237,48 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
 
     try {
       const selectedApiKey = apiKeys[0]
-
-      // Tạo service instance với API key
       const service = createCreateCollectionService(selectedApiKey.key)
-
-      // Gọi API thông qua service
       const aiData: AIWordResult = await service.fetchSingleWord(formData.content.trim())
 
-      // Populate data vào form
+      // Flatten nested metadata object
+      const flattenMetadata = (obj: Record<string, any>, prefix = ''): Record<string, any> => {
+        const flattened: Record<string, any> = {}
+
+        Object.entries(obj || {}).forEach(([key, value]) => {
+          const newKey = prefix ? `${prefix}_${key}` : key
+
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            // Recursively flatten nested objects
+            Object.assign(flattened, flattenMetadata(value, newKey))
+          } else {
+            // Keep primitive values and arrays as-is
+            flattened[newKey] = value
+          }
+        })
+
+        return flattened
+      }
+
       setFormData((prev) => ({
         ...prev,
         pronunciation: aiData.ipaNotation || prev.pronunciation,
-        wordType: aiData.wordType || prev.wordType,
         definitions:
           aiData.definitions && aiData.definitions.length > 0
-            ? aiData.definitions
+            ? aiData.definitions.map((def) => ({
+                ...def,
+                wordType: aiData.wordType || def.wordType || ''
+              }))
             : prev.definitions,
-        metadata: {
-          difficulty_level: prev.metadata.difficulty_level,
-          frequency_rank: prev.metadata.frequency_rank,
-          category: prev.metadata.category,
-          tags: prev.metadata.tags
-        }
+        difficulty_level: aiData.difficulty_level || prev.difficulty_level,
+        frequency_rank: aiData.frequency_rank || prev.frequency_rank,
+        category: aiData.category || prev.category,
+        tags: aiData.tags || prev.tags,
+        metadata: flattenMetadata(aiData.metadata || {})
       }))
 
-      console.log('[CreateWordModal] AI data fetched successfully:', aiData)
+      console.log('[CreateWordContent] AI data fetched successfully:', aiData)
     } catch (error) {
-      console.error('[CreateWordModal] AI Error:', error)
+      console.error('[CreateWordContent] AI Error:', error)
       setAiError(
         error instanceof Error
           ? `Lỗi AI: ${error.message}`
@@ -301,7 +300,13 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
       item_type: 'word',
       content: formData.content.trim(),
       pronunciation: formData.pronunciation || undefined,
-      word_type: (formData.wordType as any) || undefined,
+      // word_type đã chuyển xuống definition, không còn ở đây
+      difficulty_level:
+        formData.difficulty_level > 0 ? (formData.difficulty_level as any) : undefined,
+      frequency_rank: formData.frequency_rank > 0 ? (formData.frequency_rank as any) : undefined,
+      category: formData.category || undefined,
+      tags: formData.tags.length > 0 ? formData.tags : undefined,
+      metadata: Object.keys(formData.metadata).length > 0 ? formData.metadata : undefined,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -315,19 +320,21 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
     setFormData({
       content: '',
       pronunciation: '',
-      wordType: '',
       definitions: [
-        { meaning: '', translation: '', examples: [{ sentence: '', translation: '' }] }
+        {
+          meaning: '',
+          translation: '',
+          wordType: '',
+          examples: [{ sentence: '', translation: '' }]
+        }
       ],
-      metadata: {
-        difficulty_level: 5,
-        frequency_rank: 5,
-        category: 'daily',
-        tags: []
-      }
+      difficulty_level: 0,
+      frequency_rank: 0,
+      category: '',
+      tags: [],
+      metadata: {}
     })
     setAiError('')
-    setTagInput('')
   }
 
   const handleCancel = () => {
@@ -339,7 +346,7 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
     <CustomModal
       isOpen={isOpen}
       onClose={handleCancel}
-      title="Thêm từ vựng mới"
+      title="Add new word"
       size="2xl"
       actionText="Tạo"
       cancelText="Hủy"
@@ -347,17 +354,15 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
       actionLoading={isLoadingAI}
       actionDisabled={isLoadingAI || !formData.content.trim()}
     >
-      <div className="p-6 max-h-[80vh] overflow-y-auto">
-        <div className="grid grid-cols-2 gap-6">
+      <div className="p-6 h-[80vh] flex flex-col">
+        <div className="grid grid-cols-2 gap-6 flex-1 overflow-hidden">
           {/* LEFT PANEL - Basic Info */}
-          <div className="space-y-4">
-            <h3 className="font-semibold text-text-primary">Thông tin cơ bản</h3>
+          <div className="space-y-4 overflow-y-auto pr-2">
+            <h3 className="font-semibold text-text-primary">Basic information</h3>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Từ vựng
-                </label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Word</label>
                 <button
                   onClick={fetchAIInfo}
                   disabled={isLoadingAI || !formData.content.trim()}
@@ -380,7 +385,7 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
 
             <CustomInput
               type="text"
-              label="Phát âm (IPA)"
+              label="Pronunciation (IPA)"
               value={formData.pronunciation}
               onChange={handlePronunciationChange}
               placeholder="vd: /ˌpɜːrsəˈvɪrəns/"
@@ -388,113 +393,60 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
               size="sm"
             />
 
-            <CustomCombobox
-              label="Loại từ"
-              value={formData.wordType}
-              options={WORD_TYPES}
-              onChange={handleWordTypeChange}
-              placeholder="Chọn loại từ"
-              size="sm"
-            />
+            {/* Word Type đã chuyển xuống từng definition - xóa phần này */}
 
-            {/* Metadata Section */}
             <div className="pt-4 border-t border-border-default space-y-4">
-              <h3 className="font-semibold text-text-primary">Metadata</h3>
-
               <CustomCombobox
-                label="Độ khó"
-                value={formData.metadata.difficulty_level.toString()}
+                label="Difficulty"
+                value={formData.difficulty_level > 0 ? formData.difficulty_level.toString() : ''}
                 options={DIFFICULTY_LEVELS}
-                onChange={(val) =>
-                  handleMetadataChange(
-                    'difficulty_level',
-                    parseInt(typeof val === 'string' ? val : val[0])
-                  )
-                }
+                onChange={handleDifficultyChange}
                 size="sm"
               />
 
               <CustomCombobox
-                label="Tần suất sử dụng"
-                value={formData.metadata.frequency_rank.toString()}
+                label="Frequency"
+                value={formData.frequency_rank > 0 ? formData.frequency_rank.toString() : ''}
                 options={FREQUENCY_RANKS}
-                onChange={(val) =>
-                  handleMetadataChange(
-                    'frequency_rank',
-                    parseInt(typeof val === 'string' ? val : val[0])
-                  )
-                }
+                onChange={handleFrequencyChange}
                 size="sm"
               />
 
               <CustomCombobox
-                label="Danh mục"
-                value={formData.metadata.category}
+                label="Category"
+                value={formData.category}
                 options={CATEGORIES}
-                onChange={(val) =>
-                  handleMetadataChange('category', typeof val === 'string' ? val : val[0])
-                }
+                onChange={handleCategoryChange}
+                creatable={true}
                 size="sm"
               />
 
-              {/* Tags Input */}
               <div>
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                   Tags
                 </label>
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={handleTagInputKeyDown}
-                      placeholder="Nhập tag và nhấn Enter"
-                      className="flex-1 px-3 py-2 text-sm bg-input-background border border-border-default rounded-lg focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-text-primary"
-                    />
-                    <button
-                      onClick={() => handleAddTag(tagInput)}
-                      disabled={!tagInput.trim()}
-                      className="px-3 py-2 bg-primary/20 text-primary rounded-lg hover:bg-primary/30 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
+                <CustomTag
+                  tags={formData.tags}
+                  onTagsChange={handleTagsChange}
+                  placeholder="Enter tag name..."
+                  allowDuplicates={false}
+                  className="mt-2"
+                />
+              </div>
 
-                  {/* Common tags quick add */}
-                  <div className="flex flex-wrap gap-1">
-                    {COMMON_TAGS.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => handleAddTag(tag)}
-                        disabled={formData.metadata.tags.includes(tag)}
-                        className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Selected tags */}
-                  {formData.metadata.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 p-2 bg-card-background rounded border border-border-default">
-                      {formData.metadata.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-primary/20 text-primary rounded text-xs"
-                        >
-                          {tag}
-                          <button
-                            onClick={() => handleRemoveTag(tag)}
-                            className="hover:text-primary/80"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              <div className="pt-4 border-t border-border-default">
+                <Metadata
+                  metadata={formData.metadata}
+                  onMetadataChange={handleMetadataChange}
+                  title="Custom Metadata"
+                  size="sm"
+                  collapsible={true}
+                  defaultExpanded={false}
+                  allowCreate={true}
+                  allowDelete={true}
+                  allowEdit={true}
+                  hideEmpty={false}
+                />
               </div>
             </div>
 
@@ -506,25 +458,25 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
 
             {!hasApiKeys && (
               <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-600 dark:text-yellow-400">
-                ⚠️ Không tìm thấy Gemini API key. Thêm key trong Settings để sử dụng tính năng AI.
+                ⚠️ Gemini API key not found. Add key in Settings to use AI features.
               </div>
             )}
           </div>
 
           {/* RIGHT PANEL - Definitions & Examples */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-text-primary">Định nghĩa & Ví dụ</h3>
+          <div className="flex flex-col space-y-4 overflow-y-auto">
+            <div className="flex items-center justify-between flex-shrink-0">
+              <h3 className="font-semibold text-text-primary">Definition & Examples</h3>
               <button
                 onClick={addDefinition}
                 className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-primary/20 text-primary hover:bg-primary/30"
               >
                 <Plus className="w-3 h-3" />
-                Thêm định nghĩa
+                Add definition
               </button>
             </div>
 
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
+            <div className="space-y-3 overflow-y-auto">
               {formData.definitions.map((def, defIndex) => (
                 <div
                   key={defIndex}
@@ -532,7 +484,7 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-text-secondary">
-                      Định nghĩa {defIndex + 1}
+                      Definition {defIndex + 1}
                     </span>
                     {formData.definitions.length > 1 && (
                       <button
@@ -546,20 +498,20 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
 
                   <CustomInput
                     type="text"
-                    label="Nghĩa (tiếng Anh)"
+                    label="Meaning (English)"
                     value={def.meaning}
                     onChange={(val) => handleDefinitionChange(defIndex, 'meaning', val)}
-                    placeholder="Nhập định nghĩa tiếng Anh"
+                    placeholder="Enter English definition"
                     variant="default"
                     size="sm"
                   />
 
                   <CustomInput
                     type="text"
-                    label="Dịch nghĩa"
+                    label="Translate"
                     value={def.translation || ''}
                     onChange={(val) => handleDefinitionChange(defIndex, 'translation', val)}
-                    placeholder="Nhập dịch nghĩa tiếng Việt"
+                    placeholder="Enter translation"
                     variant="default"
                     size="sm"
                   />
@@ -567,20 +519,20 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
                   {/* Examples */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-text-secondary">Ví dụ</span>
+                      <span className="text-sm font-medium text-text-secondary">Examples</span>
                       <button
                         onClick={() => addExample(defIndex)}
                         className="flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-green-500/20 text-green-600 hover:bg-green-500/30"
                       >
                         <Plus className="w-3 h-3" />
-                        Thêm
+                        Add
                       </button>
                     </div>
 
                     {def.examples.map((example, exIndex) => (
                       <div key={exIndex} className="p-2 bg-card-background rounded space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-text-secondary">Ví dụ {exIndex + 1}</span>
+                          <span className="text-xs text-text-secondary">Example {exIndex + 1}</span>
                           {def.examples.length > 1 && (
                             <button
                               onClick={() => removeExample(defIndex, exIndex)}
@@ -596,7 +548,7 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
                           onChange={(val) =>
                             handleExampleChange(defIndex, exIndex, 'sentence', val)
                           }
-                          placeholder="Câu ví dụ"
+                          placeholder="Example sentences"
                           variant="default"
                           size="sm"
                         />
@@ -606,7 +558,7 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
                           onChange={(val) =>
                             handleExampleChange(defIndex, exIndex, 'translation', val)
                           }
-                          placeholder="Dịch nghĩa tiếng Việt"
+                          placeholder="Translate"
                           variant="default"
                           size="sm"
                         />
@@ -623,4 +575,4 @@ const CreateWordModal = ({ isOpen, onClose, onCreateSuccess }: CreateWordModalPr
   )
 }
 
-export default CreateWordModal
+export default CreateWordContent

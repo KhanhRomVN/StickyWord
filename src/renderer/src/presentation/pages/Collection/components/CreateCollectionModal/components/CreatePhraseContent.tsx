@@ -15,10 +15,10 @@ interface CreatePhraseContentProps {
 interface PhraseFormData {
   content: string
   ipaNotation?: string
-  phraseType?: string
   definitions: Array<{
     meaning: string
     translation?: string
+    phraseType?: string // Di chuyển phrase_type vào definition
     examples: Array<{
       sentence: string
       translation?: string

@@ -80,8 +80,7 @@ const CollectionCard = ({ item, isSelected, onClick }: CollectionCardProps) => {
 
       <div className="flex items-center justify-between text-xs text-text-secondary">
         <span>
-          {item.word_type && `Loại: ${item.word_type}`}
-          {item.phrase_type && `Loại: ${item.phrase_type}`}
+          {/* word_type và phrase_type đã chuyển xuống definition */}
           {item.grammar_type && `Loại: ${item.grammar_type}`}
         </span>
         <span>{new Date(item.created_at).toLocaleDateString('vi-VN')}</span>

@@ -5,6 +5,7 @@ import CustomCombobox from '../CustomCombobox'
 import CustomButton from '../CustomButton'
 import { Database, Copy, Trash2, ChevronDown, ChevronUp, Plus, Edit2 } from 'lucide-react'
 import { cn } from '../../../shared/lib/utils'
+import CustomTag from '../CustomTag'
 
 // Import types and utilities
 import {
@@ -24,7 +25,6 @@ import {
 } from './utils'
 import { renderFieldInput } from './MetadataForm'
 import CustomCodeEditor from '../CustomCodeEditor'
-import CustomArrayInput from '../CustomArrayInput'
 
 // Enhanced color mapping for different field types
 const getFieldTypeColor = (fieldType: string) => {
@@ -435,10 +435,9 @@ const Metadata: React.FC<MetadataProps> = ({
             disabled={!canModify || !allowEdit || isProtected}
           />
         ) : detectFieldType(value) === 'array' && Array.isArray(value) ? (
-          <CustomArrayInput
-            viewMode={true}
-            items={value.map(String)}
-            onChange={
+          <CustomTag
+            tags={value.map(String)}
+            onTagsChange={
               canModify && allowEdit && !isProtected
                 ? (newItems) => {
                     const newMetadata = { ...metadata }
@@ -464,12 +463,7 @@ const Metadata: React.FC<MetadataProps> = ({
             disabled={!canModify || !allowEdit || isProtected}
             placeholder="Add array item..."
             allowDuplicates={false}
-            maxItems={50}
-            hint={
-              !canModify || !allowEdit || isProtected
-                ? 'Read-only field'
-                : 'Press Enter or click + to add items'
-            }
+            maxTags={50}
           />
         ) : (
           <CustomInput value={displayValue} readOnly variant="filled" size="sm" />
