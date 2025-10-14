@@ -1,3 +1,4 @@
+// File: CollectionDetailPanel/index.tsx
 import { vocabulary_item } from '../../types/vocabulary'
 import { grammar_item } from '../../types/grammar'
 import WordContentSection from './components/WordContentSection'
@@ -6,9 +7,26 @@ import GrammarContentSection from './components/GrammarContentSection'
 
 interface CollectionDetailPanelProps {
   selectedItem: vocabulary_item | grammar_item | null
+  onItemDeleted?: (itemId: string) => void // Thêm callback khi xóa
 }
 
-const CollectionDetailPanel = ({ selectedItem }: CollectionDetailPanelProps) => {
+const CollectionDetailPanel = ({ selectedItem, onItemDeleted }: CollectionDetailPanelProps) => {
+  const handleDeleteWord = async (itemId: string) => {
+    try {
+      // Gọi API xóa từ database
+      if (window.api?.vocabulary?.delete) {
+        const result = await window.api.vocabulary.delete(itemId)
+        console.log('[CollectionDetailPanel] Delete result:', result)
+
+        // Notify parent component
+        onItemDeleted?.(itemId)
+      }
+    } catch (error) {
+      console.error('[CollectionDetailPanel] Error deleting item:', error)
+      alert(`Lỗi khi xóa: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   if (!selectedItem) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-text-secondary p-8">
@@ -36,7 +54,6 @@ const CollectionDetailPanel = ({ selectedItem }: CollectionDetailPanelProps) => 
     )
   }
 
-  // Type guard để kiểm tra xem đó là vocabulary_item hay grammar_item
   const isVocabularyItem = (item: vocabulary_item | grammar_item): item is vocabulary_item => {
     return 'item_type' in item
   }
@@ -48,9 +65,8 @@ const CollectionDetailPanel = ({ selectedItem }: CollectionDetailPanelProps) => 
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6 space-y-6">
-        {/* Type-specific Content Section */}
         {isVocabularyItem(selectedItem) && selectedItem.item_type === 'word' && (
-          <WordContentSection item={selectedItem} />
+          <WordContentSection item={selectedItem} onDelete={handleDeleteWord} />
         )}
         {isVocabularyItem(selectedItem) && selectedItem.item_type === 'phrase' && (
           <PhraseContentSection item={selectedItem} />

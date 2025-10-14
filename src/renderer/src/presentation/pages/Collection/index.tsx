@@ -1,3 +1,4 @@
+// File: Collection/index.tsx
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import CollectionListPanel from './components/CollectionListPanel'
@@ -9,7 +10,6 @@ const CollectionPage = () => {
   const location = useLocation()
   const [filterType, setFilterType] = useState<'all' | vocabulary_item['item_type']>('all')
 
-  // Auto filter based on route
   useEffect(() => {
     const path = location.pathname
     if (path.includes('/content/words')) {
@@ -21,6 +21,12 @@ const CollectionPage = () => {
     }
   }, [location.pathname])
 
+  const handleItemDeleted = (itemId: string) => {
+    console.log('[CollectionPage] Item deleted:', itemId)
+    // Clear selection
+    setSelectedItem(null)
+  }
+
   return (
     <div className="h-screen bg-background overflow-hidden flex">
       <div className="w-[30%] h-full border-r border-border-default">
@@ -28,10 +34,11 @@ const CollectionPage = () => {
           onSelectItem={setSelectedItem}
           selectedItem={selectedItem}
           defaultFilterType={filterType}
+          onItemDeleted={handleItemDeleted}
         />
       </div>
       <div className="w-[70%] h-full">
-        <CollectionDetailPanel selectedItem={selectedItem} />
+        <CollectionDetailPanel selectedItem={selectedItem} onItemDeleted={handleItemDeleted} />
       </div>
     </div>
   )
