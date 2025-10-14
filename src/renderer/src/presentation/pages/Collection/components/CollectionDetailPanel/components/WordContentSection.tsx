@@ -5,7 +5,7 @@ import CustomCombobox from '../../../../../../components/common/CustomCombobox'
 import CustomTag from '../../../../../../components/common/CustomTag'
 import Metadata from '../../../../../../components/common/Metadata'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { Edit2, Save, X, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 
 interface WordContentSectionProps {
   item: vocabulary_item
@@ -88,7 +88,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
     ]
   }
 
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(true)
   const [formData, setFormData] = useState({
     content: item.content,
     pronunciation: item.pronunciation || '',
@@ -99,26 +99,6 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
     tags: item.tags || [],
     metadata: item.metadata || {}
   })
-
-  const handleSave = () => {
-    // TODO: Save to database
-    console.log('Saving word:', formData)
-    setIsEditing(false)
-  }
-
-  const handleCancel = () => {
-    setFormData({
-      content: item.content,
-      pronunciation: item.pronunciation || '',
-      definitions: getInitialDefinitions(),
-      difficulty_level: item.difficulty_level || 0,
-      frequency_rank: item.frequency_rank || 0,
-      category: item.category || '',
-      tags: item.tags || [],
-      metadata: item.metadata || {}
-    })
-    setIsEditing(false)
-  }
 
   const handleContentChange = (value: string) => {
     setFormData((prev) => ({ ...prev, content: value }))
@@ -228,48 +208,14 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
     }
   }
 
-  // Sample analytics data - in real app, this would come from API
-  const sampleAnalytics = {
-    mastery_score: 75,
-    times_seen: 12,
-    times_correct: 9,
-    last_reviewed_at: '2024-01-15T10:30:00Z'
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header with Edit/Save buttons */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-text-primary">Word Details</h2>
-        <div className="flex gap-2">
-          {!isEditing ? (
-            <CustomButton
-              variant="primary"
-              size="sm"
-              icon={Edit2}
-              onClick={() => setIsEditing(true)}
-            >
-              Chỉnh sửa
-            </CustomButton>
-          ) : (
-            <>
-              <CustomButton variant="secondary" size="sm" icon={X} onClick={handleCancel}>
-                Hủy
-              </CustomButton>
-              <CustomButton variant="primary" size="sm" icon={Save} onClick={handleSave}>
-                Lưu
-              </CustomButton>
-            </>
-          )}
-        </div>
-      </div>
-
       {/* Basic Information */}
       <section>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Thông tin cơ bản</h3>
+        <h3 className="text-lg font-semibold text-text-primary mb-4">Information</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CustomInput
-            label="Từ vựng"
+            label="Word"
             value={formData.content}
             onChange={handleContentChange}
             disabled={!isEditing}
@@ -278,7 +224,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
           />
 
           <CustomInput
-            label="Phát âm (IPA)"
+            label="Pronunciation (IPA)"
             value={formData.pronunciation}
             onChange={handlePronunciationChange}
             disabled={!isEditing}
@@ -288,7 +234,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
           />
 
           <CustomCombobox
-            label="Độ khó"
+            label="Difficulty"
             value={formData.difficulty_level > 0 ? formData.difficulty_level.toString() : ''}
             options={DIFFICULTY_LEVELS}
             onChange={handleDifficultyChange}
@@ -296,7 +242,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
           />
 
           <CustomCombobox
-            label="Tần suất"
+            label="Frequency"
             value={formData.frequency_rank > 0 ? formData.frequency_rank.toString() : ''}
             options={FREQUENCY_RANKS}
             onChange={handleFrequencyChange}
@@ -304,7 +250,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
           />
 
           <CustomCombobox
-            label="Danh mục"
+            label="Category"
             value={formData.category}
             options={CATEGORIES}
             onChange={handleCategoryChange}
@@ -322,7 +268,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
             tags={formData.tags}
             onTagsChange={handleTagsChange}
             disabled={!isEditing}
-            placeholder="Thêm tag..."
+            placeholder="Add tag..."
             allowDuplicates={false}
           />
         </div>
@@ -331,10 +277,10 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
       {/* Definitions & Examples */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-text-primary">Định nghĩa & Ví dụ</h3>
+          <h3 className="text-lg font-semibold text-text-primary">Definition & Examples</h3>
           {isEditing && (
             <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addDefinition}>
-              Thêm định nghĩa
+              Add definition
             </CustomButton>
           )}
         </div>
@@ -344,7 +290,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
             <div key={def.id} className="p-4 border border-border-default rounded-lg space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-text-secondary">
-                  Định nghĩa {defIndex + 1}
+                  Defineition {defIndex + 1}
                 </span>
                 {isEditing && formData.definitions.length > 1 && (
                   <button
@@ -356,9 +302,9 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <CustomInput
-                  label="Nghĩa (Tiếng Anh)"
+                  label="Meaning (English)"
                   value={def.meaning}
                   onChange={(val) => handleDefinitionChange(defIndex, 'meaning', val)}
                   disabled={!isEditing}
@@ -368,17 +314,17 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
                 />
 
                 <CustomInput
-                  label="Dịch nghĩa"
+                  label="Translate"
                   value={def.translation || ''}
                   onChange={(val) => handleDefinitionChange(defIndex, 'translation', val)}
                   disabled={!isEditing}
                   variant={isEditing ? 'default' : 'filled'}
-                  placeholder="Enter Vietnamese translation"
+                  placeholder="Enter translation"
                   size="sm"
                 />
 
                 <CustomCombobox
-                  label="Loại từ"
+                  label="Type"
                   value={def.word_type || ''}
                   options={WORD_TYPES}
                   onChange={(val) =>
@@ -396,23 +342,22 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
               {/* Examples */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-text-secondary">Ví dụ</span>
+                  <span className="text-sm font-medium text-text-secondary">Example</span>
                   {isEditing && (
-                    <CustomButton
-                      variant="ghost"
-                      size="sm"
-                      icon={Plus}
+                    <button
                       onClick={() => addExample(defIndex)}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs text-text-secondary hover:text-text-primary rounded transition-colors whitespace-nowrap"
                     >
-                      Thêm ví dụ
-                    </CustomButton>
+                      <Plus className="w-3.5 h-3.5" />
+                      Add example
+                    </button>
                   )}
                 </div>
 
                 {def.examples.map((example: any, exIndex: number) => (
                   <div key={exIndex} className="p-3 bg-card-background rounded space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-text-secondary">Ví dụ {exIndex + 1}</span>
+                      <span className="text-xs text-text-secondary">Example {exIndex + 1}</span>
                       {isEditing && def.examples.length > 1 && (
                         <button
                           onClick={() => removeExample(defIndex, exIndex)}
@@ -423,7 +368,7 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
                       )}
                     </div>
                     <CustomInput
-                      label="Câu ví dụ"
+                      label="Example sentence"
                       value={example.sentence}
                       onChange={(val) => handleExampleChange(defIndex, exIndex, 'sentence', val)}
                       disabled={!isEditing}
@@ -432,12 +377,12 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
                       size="sm"
                     />
                     <CustomInput
-                      label="Dịch câu ví dụ"
+                      label="Translate (example)"
                       value={example.translation || ''}
                       onChange={(val) => handleExampleChange(defIndex, exIndex, 'translation', val)}
                       disabled={!isEditing}
                       variant={isEditing ? 'default' : 'filled'}
-                      placeholder="Vietnamese translation"
+                      placeholder="Translation"
                       size="sm"
                     />
                   </div>
@@ -462,35 +407,6 @@ const WordContentSection = ({ item }: WordContentSectionProps) => {
           collapsible={true}
           defaultExpanded={false}
         />
-      </section>
-
-      {/* Analytics (Read-only) */}
-      <section>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Thống kê học tập</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card-background p-4 rounded-lg border border-border-default">
-            <div className="text-2xl font-bold text-text-primary">
-              {sampleAnalytics.mastery_score}%
-            </div>
-            <div className="text-sm text-text-secondary">Độ thành thạo</div>
-          </div>
-          <div className="bg-card-background p-4 rounded-lg border border-border-default">
-            <div className="text-2xl font-bold text-text-primary">{sampleAnalytics.times_seen}</div>
-            <div className="text-sm text-text-secondary">Số lần xem</div>
-          </div>
-          <div className="bg-card-background p-4 rounded-lg border border-border-default">
-            <div className="text-2xl font-bold text-text-primary">
-              {sampleAnalytics.times_correct}
-            </div>
-            <div className="text-sm text-text-secondary">Số lần đúng</div>
-          </div>
-          <div className="bg-card-background p-4 rounded-lg border border-border-default">
-            <div className="text-2xl font-bold text-text-primary">
-              {new Date(sampleAnalytics.last_reviewed_at).toLocaleDateString('vi-VN')}
-            </div>
-            <div className="text-sm text-text-secondary">Lần xem gần nhất</div>
-          </div>
-        </div>
       </section>
     </div>
   )
