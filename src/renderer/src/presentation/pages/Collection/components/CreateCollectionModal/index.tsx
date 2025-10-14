@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import CreateWordContent from './components/CreateWordContent'
 import CreatePhraseContent from './components/CreatePhraseContent'
-// import CreateGrammarContent from './components/CreateGrammarContent'
+import CreateGrammarContent from './components/CreateGrammarContent'
 import { vocabulary_item } from '../../types/vocabulary'
 import { grammar_item } from '../../types/grammar'
 
@@ -57,14 +57,14 @@ const CreateCollectionModal = ({
           onCreateSuccess={handleCreateSuccess}
         />
       )}
-      {/* 
+
       {collectionType === 'grammar' && (
         <CreateGrammarContent
           isOpen={isOpen}
           onClose={onClose}
           onCreateSuccess={handleCreateSuccess}
         />
-      )} */}
+      )}
     </>
   )
 }

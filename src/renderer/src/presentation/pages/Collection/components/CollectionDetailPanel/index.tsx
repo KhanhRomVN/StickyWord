@@ -3,7 +3,7 @@ import { vocabulary_item } from '../../types/vocabulary'
 import { grammar_item } from '../../types/grammar'
 import WordContentSection from './components/WordContentSection'
 import PhraseContentSection from './components/PhraseContentSection'
-// import GrammarContentSection from './components/GrammarContentSection'
+import GrammarContentSection from './components/GrammarContentSection'
 
 interface CollectionDetailPanelProps {
   selectedItem: vocabulary_item | grammar_item | null
@@ -54,12 +54,13 @@ const CollectionDetailPanel = ({ selectedItem, onItemDeleted }: CollectionDetail
     )
   }
 
+  // ✅ Fix: Type guard chính xác dựa trên cấu trúc dữ liệu
   const isVocabularyItem = (item: vocabulary_item | grammar_item): item is vocabulary_item => {
-    return 'item_type' in item
+    return 'content' in item && !('title' in item)
   }
 
   const isGrammarItem = (item: vocabulary_item | grammar_item): item is grammar_item => {
-    return 'grammar_type' in item
+    return 'title' in item && !('content' in item)
   }
 
   return (
@@ -71,7 +72,7 @@ const CollectionDetailPanel = ({ selectedItem, onItemDeleted }: CollectionDetail
         {isVocabularyItem(selectedItem) && selectedItem.item_type === 'phrase' && (
           <PhraseContentSection item={selectedItem} />
         )}
-        {/* {isGrammarItem(selectedItem) && <GrammarContentSection item={selectedItem} />} */}
+        {isGrammarItem(selectedItem) && <GrammarContentSection item={selectedItem} />}
       </div>
     </div>
   )

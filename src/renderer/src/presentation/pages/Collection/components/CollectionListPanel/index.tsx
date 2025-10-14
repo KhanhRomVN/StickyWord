@@ -7,15 +7,17 @@ import CustomButton from '../../../../../components/common/CustomButton'
 import { Plus, Search } from 'lucide-react'
 
 interface CollectionListPanelProps {
-  onSelectItem: (item: vocabulary_item | null) => void
-  selectedItem: vocabulary_item | null
+  onSelectItem: (item: vocabulary_item | grammar_item | null) => void // ✅ Add grammar_item
+  selectedItem: vocabulary_item | grammar_item | null // ✅ Add grammar_item
   defaultFilterType?: 'all' | vocabulary_item['item_type']
+  onItemDeleted?: (itemId: string) => void // ✅ Add this prop
 }
 
 const CollectionListPanel = ({
   onSelectItem,
   selectedItem,
-  defaultFilterType = 'all'
+  defaultFilterType = 'all',
+  onItemDeleted
 }: CollectionListPanelProps) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | vocabulary_item['item_type']>(
@@ -43,17 +45,43 @@ const CollectionListPanel = ({
 
   const loadItems = async (filter: 'all' | vocabulary_item['item_type']) => {
     try {
+      console.log('[CollectionListPanel] ========== LOAD ITEMS START ==========')
+      console.log('[CollectionListPanel] Filter:', filter)
+
       setIsLoading(true)
-      // TODO: Replace with actual API call
+
       if (window.api?.vocabulary?.getAll) {
         const response = await window.api.vocabulary.getAll(filter)
+
+        console.log('[CollectionListPanel] ✅ Response received:', response.length, 'items')
+        console.log('[CollectionListPanel] Items breakdown:')
+
+        const vocabItems = response.filter((item) => 'content' in item)
+        const grammarItems = response.filter((item) => 'title' in item && !('content' in item))
+
+        console.log('[CollectionListPanel]  - Vocabulary items:', vocabItems.length)
+        console.log('[CollectionListPanel]  - Grammar items:', grammarItems.length)
+
+        if (grammarItems.length > 0) {
+          console.log('[CollectionListPanel] Grammar items detail:')
+          grammarItems.forEach((item, idx) => {
+            console.log(`  [${idx}]:`, {
+              id: item.id,
+              title: item.title,
+              item_type: item.item_type
+            })
+          })
+        }
+
         setItems(response)
       } else {
-        // Fallback to empty array if API not available
+        console.warn('[CollectionListPanel] ⚠️ API not available')
         setItems([])
       }
+
+      console.log('[CollectionListPanel] ========== LOAD ITEMS END ==========')
     } catch (error) {
-      console.error('[CollectionListPanel] Error loading items:', error)
+      console.error('[CollectionListPanel] ❌ Error loading items:', error)
       setItems([])
     } finally {
       setIsLoading(false)
@@ -61,11 +89,39 @@ const CollectionListPanel = ({
   }
 
   const filteredAndSortedItems = useMemo(() => {
+    console.log('[CollectionListPanel] ========== FILTERING ==========')
+    console.log('[CollectionListPanel] Items to filter:', items.length)
+    console.log('[CollectionListPanel] Search term:', searchTerm)
+    console.log('[CollectionListPanel] Filter type:', filterType)
+
     let filtered = items.filter((item) => {
-      const matchesSearch = item.content.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesType = filterType === 'all' || item.item_type === filterType
-      return matchesSearch && matchesType
+      // ✅ Xử lý cả vocabulary_item (content) và grammar_item (title)
+      const searchableText = item.content || item.title || ''
+      const matchesSearch = searchableText.toLowerCase().includes(searchTerm.toLowerCase())
+
+      // ✅ Fix: Grammar items có item_type = 'tense'|'structure'|'rule'|'pattern'
+      // Nên cần kiểm tra xem item có phải là grammar không (bằng cách check có title và không có content)
+      const isGrammarItem = 'title' in item && !('content' in item)
+      const matchesType =
+        filterType === 'all' ||
+        item.item_type === filterType ||
+        (filterType === 'grammar' && isGrammarItem)
+
+      const shouldInclude = matchesSearch && matchesType
+
+      if (!shouldInclude) {
+        console.log('[CollectionListPanel] Filtered out:', {
+          id: item.id,
+          searchableText,
+          matchesSearch,
+          matchesType
+        })
+      }
+
+      return shouldInclude
     })
+
+    console.log('[CollectionListPanel] After filter:', filtered.length, 'items')
 
     // Sort items
     filtered.sort((a, b) => {
@@ -75,40 +131,49 @@ const CollectionListPanel = ({
         case 'oldest':
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         case 'content':
-          return a.content.localeCompare(b.content)
+          // ✅ Xử lý cả content và title khi sort
+          const aText = a.content || a.title || ''
+          const bText = b.content || b.title || ''
+          return aText.localeCompare(bText)
         default:
           return 0
       }
     })
+
+    console.log('[CollectionListPanel] After sort:', filtered.length, 'items')
+    console.log('[CollectionListPanel] ========== END FILTERING ==========')
 
     return filtered
   }, [items, searchTerm, filterType, sortBy])
 
   const handleCreateSuccess = async (newItems: vocabulary_item[] | grammar_item[]) => {
     try {
-      console.log('[CollectionListPanel] Saving items to database:', newItems)
-      console.log('[CollectionListPanel] First item details:', JSON.stringify(newItems[0], null, 2))
+      console.log('[CollectionListPanel] ========== START SAVE PROCESS ==========')
+      console.log('[CollectionListPanel] Received items count:', newItems.length)
 
-      // Lưu từng item vào SQLite database
+      if (newItems.length === 0) {
+        console.warn('[CollectionListPanel] ⚠️ No items to save!')
+        return
+      }
+
+      // ✅ Save items
       for (const item of newItems) {
-        console.log('[CollectionListPanel] Attempting to save item:', item.id)
+        console.log('[CollectionListPanel] Saving item:', item.id)
+
         if (window.api?.vocabulary?.save) {
           const result = await window.api.vocabulary.save(item)
-          console.log('[CollectionListPanel] Save result:', result)
+          console.log('[CollectionListPanel] ✅ Save result:', result)
         }
       }
 
-      // Reload danh sách từ database
+      // ✅ Reload list
       await loadItems(filterType)
       setIsCreateModalOpen(false)
 
-      console.log('[CollectionListPanel] Items saved successfully')
+      console.log('[CollectionListPanel] ========== SAVE PROCESS COMPLETED ==========')
     } catch (error) {
-      const err = error as Error
-      console.error('[CollectionListPanel] Error saving items - Full error:', error)
-      console.error('[CollectionListPanel] Error message:', err?.message)
-      console.error('[CollectionListPanel] Error stack:', err?.stack)
-      alert(`Lỗi khi lưu dữ liệu: ${err?.message || 'Unknown error'}`)
+      console.error('[CollectionListPanel] ❌ Error saving:', error)
+      alert(`Lỗi khi lưu: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

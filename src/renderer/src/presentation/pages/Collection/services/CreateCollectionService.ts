@@ -47,6 +47,11 @@ export interface AIPhraseResult {
 export interface AIGrammarResult {
   content: string
   grammarType: string
+  difficulty_level?: number
+  frequency_rank?: number
+  category?: string
+  tags?: string[]
+  metadata?: Record<string, any>
   definitions: Array<{
     description: string
     explanation: string
@@ -407,6 +412,18 @@ Return information in this JSON structure:
     {
       "content": "${grammarPoint}",
       "grammarType": "tense|conditional|passive|modal|article|preposition_usage|sentence_structure",
+      "difficulty_level": 1-10 (1=very easy, 10=very hard),
+      "frequency_rank": 1-10 (1=very rare, 10=very common),
+      "category": "tenses|conditionals|passive|reported_speech|modals",
+      "tags": ["tag1", "tag2", "tag3"],
+      "metadata": {
+        "usage_context": "when to use this grammar point",
+        "common_contexts": ["context1", "context2"],
+        "related_grammar": ["related point 1", "related point 2"],
+        "learning_tip": "helpful tip for understanding",
+        "formality": "formal/informal/neutral",
+        "register": "spoken/written/both"
+      },
       "definitions": [
         {
           "description": "Brief description",
@@ -448,7 +465,15 @@ Return information in this JSON structure:
   ]
 }
 
-IMPORTANT:
+IMPORTANT RULES:
+- difficulty_level (1-10), frequency_rank (1-10), category, and tags are REQUIRED fields
+- Tags should be relevant to the grammar point (e.g., ["basic", "intermediate", "advanced", "formal", "spoken"])
+- metadata is a FLAT object with simple key-value pairs (NO nested objects)
+- Use ONLY these data types: string, number, boolean, array
+- Be creative with field names! Examples: usage_context, common_contexts, related_grammar, learning_tip, etc.
+- Arrays should contain simple strings only
+- NO nested objects inside metadata
+- More metadata fields = better learning experience
 - Must have clear structure/formula
 - Include at least 3 examples and 2 common mistakes
 - Vietnamese explanations must be detailed and accurate
@@ -468,6 +493,16 @@ For EACH grammar point, return information in this JSON structure:
     {
       "content": "the exact grammar point name",
       "grammarType": "tense|conditional|passive|modal|article|preposition_usage|sentence_structure",
+      "difficulty_level": 1-10 (1=very easy, 10=very hard),
+      "frequency_rank": 1-10 (1=very rare, 10=very common),
+      "category": "tenses|conditionals|passive|reported_speech|modals",
+      "tags": ["tag1", "tag2", "tag3"],
+      "metadata": {
+        "usage_context": "when to use this grammar point",
+        "common_contexts": ["context1", "context2"],
+        "related_grammar": ["related point 1", "related point 2"],
+        "learning_tip": "helpful tip for understanding"
+      },
       "definitions": [
         {
           "description": "Brief description",
@@ -494,8 +529,11 @@ For EACH grammar point, return information in this JSON structure:
   ]
 }
 
-IMPORTANT:
+IMPORTANT RULES:
 - Return information for ALL ${grammarPoints.length} grammar points
+- difficulty_level (1-10), frequency_rank (1-10), category, and tags are REQUIRED fields
+- Tags should be relevant to each grammar point
+- metadata is a FLAT object - be creative with field names
 - Each must have clear structure/formula
 - Include at least 3 examples and 2 common mistakes
 - Vietnamese explanations must be detailed and accurate

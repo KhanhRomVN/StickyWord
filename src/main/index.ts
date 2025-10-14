@@ -84,6 +84,30 @@ const initializeDatabaseSchema = async (database: Database): Promise<void> => {
           }
         }
       )
+
+      database.run(
+        `CREATE TABLE IF NOT EXISTS grammar_item (
+          id TEXT PRIMARY KEY,
+          item_type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          difficulty_level INTEGER,
+          frequency_rank INTEGER,
+          category TEXT,
+          tags TEXT,
+          metadata TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )`,
+        (err) => {
+          if (err) {
+            console.error('Error creating grammar_item table:', err)
+            reject(err)
+          } else {
+            console.log('[Main] grammar_item table created')
+            resolve()
+          }
+        }
+      )
     })
   })
 }
@@ -438,7 +462,48 @@ function setupDatabaseHandlers() {
     try {
       if (!db) throw new Error('Database not connected')
 
-      const query = `
+      console.log('[vocabulary:save] ========== START SAVE ==========')
+      console.log('[vocabulary:save] Received item:', JSON.stringify(item, null, 2))
+
+      // ✅ Phân biệt vocabulary_item và grammar_item
+      const isGrammar = 'title' in item && !('content' in item)
+      console.log('[vocabulary:save] Is grammar item?', isGrammar)
+
+      let query: string
+      let params: any[]
+
+      if (isGrammar) {
+        // Grammar item - INSERT
+        console.log('[vocabulary:save] 🟢 Saving as GRAMMAR ITEM')
+
+        query = `
+        INSERT INTO grammar_item (
+          id, item_type, title,
+          difficulty_level, frequency_rank, category, tags, metadata,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `
+
+        params = [
+          item.id,
+          item.item_type || 'tense',
+          item.title,
+          item.difficulty_level || null,
+          item.frequency_rank || null,
+          item.category || null,
+          item.tags ? JSON.stringify(item.tags) : null,
+          item.metadata ? JSON.stringify(item.metadata) : null,
+          item.created_at,
+          item.updated_at
+        ]
+
+        console.log('[vocabulary:save] Grammar INSERT query:', query)
+        console.log('[vocabulary:save] Grammar params:', params)
+      } else {
+        // Vocabulary item (word/phrase)
+        console.log('[vocabulary:save] 🔵 Saving as VOCABULARY ITEM')
+
+        query = `
         INSERT INTO vocabulary_item (
           id, item_type, content, pronunciation,
           difficulty_level, frequency_rank, category, tags, metadata,
@@ -446,31 +511,39 @@ function setupDatabaseHandlers() {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `
 
-      const params = [
-        item.id,
-        item.item_type,
-        item.content,
-        item.pronunciation || null,
-        item.difficulty_level || null,
-        item.frequency_rank || null,
-        item.category || null,
-        item.tags ? JSON.stringify(item.tags) : null,
-        item.metadata ? JSON.stringify(item.metadata) : null,
-        item.created_at,
-        item.updated_at
-      ]
+        params = [
+          item.id,
+          item.item_type,
+          item.content,
+          item.pronunciation || null,
+          item.difficulty_level || null,
+          item.frequency_rank || null,
+          item.category || null,
+          item.tags ? JSON.stringify(item.tags) : null,
+          item.metadata ? JSON.stringify(item.metadata) : null,
+          item.created_at,
+          item.updated_at
+        ]
+
+        console.log('[vocabulary:save] Vocabulary INSERT query:', query)
+        console.log('[vocabulary:save] Vocabulary params:', params)
+      }
 
       return new Promise((resolve, reject) => {
         db!.run(query, params, function (err) {
           if (err) {
+            console.error('[vocabulary:save] ❌ SQL Error:', err)
             reject(err)
           } else {
+            console.log('[vocabulary:save] ✅ Save successful!')
+            console.log('[vocabulary:save] Result:', { id: item.id, changes: this.changes })
+            console.log('[vocabulary:save] ========== END SAVE ==========')
             resolve({ id: item.id, changes: this.changes })
           }
         })
       })
     } catch (error) {
-      console.error('Error saving vocabulary item:', error)
+      console.error('[vocabulary:save] ❌ Error saving item:', error)
       throw error
     }
   })
@@ -479,33 +552,98 @@ function setupDatabaseHandlers() {
     try {
       if (!db) throw new Error('Database not connected')
 
-      let query = 'SELECT * FROM vocabulary_item'
-      const params: any[] = []
+      console.log('[vocabulary:getAll] ========== START GET ALL ==========')
+      console.log('[vocabulary:getAll] Filter type:', filterType)
 
-      if (filterType && filterType !== 'all') {
-        query += ' WHERE item_type = ?'
-        params.push(filterType)
+      let vocabularyItems: any[] = []
+      let grammarItems: any[] = []
+
+      // Query vocabulary_item (word/phrase)
+      if (!filterType || filterType === 'all' || filterType === 'word' || filterType === 'phrase') {
+        let vocabQuery = 'SELECT * FROM vocabulary_item'
+        const vocabParams: any[] = []
+
+        if (filterType && filterType !== 'all') {
+          vocabQuery += ' WHERE item_type = ?'
+          vocabParams.push(filterType)
+        }
+
+        vocabQuery += ' ORDER BY created_at DESC'
+
+        console.log('[vocabulary:getAll] 🔵 Vocabulary query:', vocabQuery)
+        console.log('[vocabulary:getAll] 🔵 Vocabulary params:', vocabParams)
+
+        vocabularyItems = await new Promise((resolve, reject) => {
+          db!.all(vocabQuery, vocabParams, (err, rows: any[]) => {
+            if (err) {
+              console.error('[vocabulary:getAll] ❌ Vocabulary query error:', err)
+              reject(err)
+            } else {
+              const items = rows.map((row) => ({
+                ...row,
+                tags: row.tags ? JSON.parse(row.tags) : [],
+                metadata: row.metadata ? JSON.parse(row.metadata) : {}
+              }))
+              console.log('[vocabulary:getAll] ✅ Vocabulary items found:', items.length)
+              if (items.length > 0) {
+                console.log('[vocabulary:getAll] First vocabulary item:', items[0])
+              }
+              resolve(items)
+            }
+          })
+        })
       }
 
-      query += ' ORDER BY created_at DESC'
+      // Query grammar_item (grammar points with any item_type)
+      if (!filterType || filterType === 'all' || filterType === 'grammar') {
+        const grammarQuery = 'SELECT * FROM grammar_item ORDER BY created_at DESC'
 
-      return new Promise((resolve, reject) => {
-        db!.all(query, params, (err, rows: any[]) => {
-          if (err) {
-            reject(err)
-          } else {
-            // Parse JSON fields
-            const items = rows.map((row) => ({
-              ...row,
-              tags: row.tags ? JSON.parse(row.tags) : [],
-              metadata: row.metadata ? JSON.parse(row.metadata) : {}
-            }))
-            resolve(items)
-          }
+        console.log('[vocabulary:getAll] 🟢 Grammar query:', grammarQuery)
+
+        grammarItems = await new Promise((resolve, reject) => {
+          db!.all(grammarQuery, [], (err, rows: any[]) => {
+            if (err) {
+              console.error('[vocabulary:getAll] ❌ Grammar query error:', err)
+              reject(err)
+            } else {
+              const items = rows.map((row) => ({
+                ...row,
+                tags: row.tags ? JSON.parse(row.tags) : [],
+                metadata: row.metadata ? JSON.parse(row.metadata) : {}
+              }))
+              console.log('[vocabulary:getAll] ✅ Grammar items found:', items.length)
+              if (items.length > 0) {
+                console.log('[vocabulary:getAll] Grammar items detail:')
+                items.forEach((item, index) => {
+                  console.log(`  [${index}]:`, {
+                    id: item.id,
+                    title: item.title,
+                    item_type: item.item_type,
+                    has_content: 'content' in item,
+                    has_title: 'title' in item
+                  })
+                })
+              }
+              resolve(items)
+            }
+          })
         })
+      }
+
+      // Merge and sort by created_at
+      const allItems = [...vocabularyItems, ...grammarItems].sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       })
+
+      console.log('[vocabulary:getAll] ========== SUMMARY ==========')
+      console.log('[vocabulary:getAll] Total vocabulary items:', vocabularyItems.length)
+      console.log('[vocabulary:getAll] Total grammar items:', grammarItems.length)
+      console.log('[vocabulary:getAll] Total merged items:', allItems.length)
+      console.log('[vocabulary:getAll] ========== END GET ALL ==========')
+
+      return allItems
     } catch (error) {
-      console.error('Error getting vocabulary items:', error)
+      console.error('[vocabulary:getAll] ❌ Error getting items:', error)
       throw error
     }
   })
@@ -514,19 +652,27 @@ function setupDatabaseHandlers() {
     try {
       if (!db) throw new Error('Database not connected')
 
-      const query = 'DELETE FROM vocabulary_item WHERE id = ?'
-
-      return new Promise((resolve, reject) => {
-        db!.run(query, [id], function (err) {
-          if (err) {
-            reject(err)
-          } else {
-            resolve({ changes: this.changes })
-          }
+      // Try deleting from vocabulary_item first
+      let changes = await new Promise<number>((resolve, reject) => {
+        db!.run('DELETE FROM vocabulary_item WHERE id = ?', [id], function (err) {
+          if (err) reject(err)
+          else resolve(this.changes)
         })
       })
+
+      // If not found in vocabulary_item, try grammar_item
+      if (changes === 0) {
+        changes = await new Promise<number>((resolve, reject) => {
+          db!.run('DELETE FROM grammar_item WHERE id = ?', [id], function (err) {
+            if (err) reject(err)
+            else resolve(this.changes)
+          })
+        })
+      }
+
+      return { changes }
     } catch (error) {
-      console.error('Error deleting vocabulary item:', error)
+      console.error('Error deleting item:', error)
       throw error
     }
   })
@@ -535,7 +681,36 @@ function setupDatabaseHandlers() {
     try {
       if (!db) throw new Error('Database not connected')
 
-      const query = `
+      const isGrammar = 'title' in item && !('content' in item)
+
+      let query: string
+      let params: any[]
+
+      if (isGrammar) {
+        query = `
+        UPDATE grammar_item SET
+          title = ?,
+          difficulty_level = ?,
+          frequency_rank = ?,
+          category = ?,
+          tags = ?,
+          metadata = ?,
+          updated_at = ?
+        WHERE id = ?
+      `
+
+        params = [
+          item.title,
+          item.difficulty_level || null,
+          item.frequency_rank || null,
+          item.category || null,
+          item.tags ? JSON.stringify(item.tags) : null,
+          item.metadata ? JSON.stringify(item.metadata) : null,
+          new Date().toISOString(),
+          item.id
+        ]
+      } else {
+        query = `
         UPDATE vocabulary_item SET
           content = ?,
           pronunciation = ?,
@@ -548,29 +723,27 @@ function setupDatabaseHandlers() {
         WHERE id = ?
       `
 
-      const params = [
-        item.content,
-        item.pronunciation || null,
-        item.difficulty_level || null,
-        item.frequency_rank || null,
-        item.category || null,
-        item.tags ? JSON.stringify(item.tags) : null,
-        item.metadata ? JSON.stringify(item.metadata) : null,
-        new Date().toISOString(),
-        item.id
-      ]
+        params = [
+          item.content,
+          item.pronunciation || null,
+          item.difficulty_level || null,
+          item.frequency_rank || null,
+          item.category || null,
+          item.tags ? JSON.stringify(item.tags) : null,
+          item.metadata ? JSON.stringify(item.metadata) : null,
+          new Date().toISOString(),
+          item.id
+        ]
+      }
 
       return new Promise((resolve, reject) => {
         db!.run(query, params, function (err) {
-          if (err) {
-            reject(err)
-          } else {
-            resolve({ changes: this.changes })
-          }
+          if (err) reject(err)
+          else resolve({ changes: this.changes })
         })
       })
     } catch (error) {
-      console.error('Error updating vocabulary item:', error)
+      console.error('Error updating item:', error)
       throw error
     }
   })

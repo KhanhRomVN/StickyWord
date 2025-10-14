@@ -1,204 +1,224 @@
-// === GRAMMAR CORE ===
+// === CORE GRAMMAR ===
 export interface grammar_item {
   id: string
-  content: string
-  grammar_type:
-    | 'tense'
-    | 'conditional'
-    | 'passive'
-    | 'modal'
-    | 'article'
-    | 'preposition_usage'
-    | 'sentence_structure'
-
+  item_type: 'tense' | 'structure' | 'rule' | 'pattern'
+  title: string // e.g., "Present Perfect", "Conditional Sentences Type 2"
+  difficulty_level?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+  frequency_rank?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+  category?: string // tenses, conditionals, passive, reported_speech, modals
+  tags?: string[] // ["basic", "intermediate", "advanced", "formal", "spoken"]
+  metadata?: Record<string, any>
   created_at: string
   updated_at: string
 }
 
-// === GRAMMAR DEFINITIONS & EXAMPLES ===
-export interface grammar_definition {
+// === GRAMMAR RULES & EXPLANATIONS ===
+export interface grammar_rule {
   id: string
   grammar_item_id: string
-
-  description: string
-  explanation: string
-  structure?: string
-  translation?: string
-  language_code: string // 'vi', 'ja', 'ko', 'zh', 'es', 'fr', etc.
-
+  rule_description: string // Description of the rule
+  translation?: string // Vietnamese translation
+  formula?: string // e.g., "Subject + have/has + past participle"
+  usage_context?: string // When to use this grammar
+  notes?: string // Additional notes, exceptions
   created_at: string
 }
 
 export interface grammar_example {
   id: string
-  grammar_definition_id: string
-
+  grammar_rule_id: string
   sentence: string
   translation?: string
-  usage_note?: string
-  language_code: string
-
+  is_correct: boolean // true for correct examples, false for common mistakes
+  explanation?: string // Why this is correct/incorrect
   created_at: string
 }
 
-// === GRAMMAR MISTAKES ===
-export interface grammar_mistake {
+// === COMMON MISTAKES ===
+export interface grammar_common_mistake {
   id: string
   grammar_item_id: string
-
   incorrect_example: string
   correct_example: string
   explanation: string
-
+  translation?: string
   created_at: string
 }
 
-// === GRAMMAR METADATA ===
-export interface grammar_metadata {
+// === RELATIONSHIPS ===
+export interface grammar_relation {
   id: string
   grammar_item_id: string
-
-  difficulty_level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
-  frequency_rank: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
-  cefr_level?: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2'
-
-  category: string // basic, intermediate, advanced
-  tags: string[] // ["beginner", "common", "formal", "spoken"]
-
-  is_active: boolean
-
+  related_item_id: string
+  relation_type: 'prerequisite' | 'related' | 'contrast' | 'progression'
   created_at: string
-  updated_at: string
 }
 
-// === GRAMMAR LEARNING ANALYTICS ===
+// === USER LEARNING ANALYTICS ===
 export interface grammar_analytics {
   id: string
   grammar_item_id: string
-
   mastery_score: number // 0-100
-  times_seen: number
-  times_correct: number
-  times_incorrect: number
-
-  first_learned_at: string
   last_reviewed_at?: string
-  last_seen_at?: string
-
   created_at: string
   updated_at: string
 }
 
-// === GRAMMAR RECOMMENDATION ENGINE ===
-export interface grammar_recommendation {
+// === ERROR TRACKING ===
+export interface grammar_question_history {
   id: string
   grammar_item_id: string
-
-  priority_score: number // 0-100: độ ưu tiên hiển thị
-  retention_rate: number // 0-1: khả năng nhớ dự đoán
-
-  next_review_date?: string
-  review_interval_days: number
-  ease_factor: number // SuperMemo algorithm
-
-  created_at: string
-  updated_at: string
-}
-
-// === GRAMMAR LEARNING CONTEXT ===
-export interface grammar_learning_context {
-  id: string
-  grammar_item_id: string
-  question_id?: string
-
-  sentence: string
-  was_correct: boolean
-  user_answer?: string
-  context_type: 'grammar_exercise' | 'writing' | 'reading'
-
-  timestamp: string
-  created_at: string
-}
-
-// === GRAMMAR SOURCE TRACKING ===
-export interface grammar_source {
-  id: string
-  grammar_item_id: string
-
-  source_type: 'user_error' | 'imported' | 'ai_suggested' | 'manual_add'
-  source_reference?: string // question_id hoặc import file name
-
-  added_at: string
-  created_at: string
+  question_id: string
 }
 
 // === EXAMPLE DATA STRUCTURE ===
+// Example 1: Present Perfect Tense
 // {
 //   "grammar_item": {
 //     "id": "grammar_001",
-//     "content": "Present Perfect Continuous",
-//     "grammar_type": "tense",
+//     "item_type": "tense",
+//     "title": "Present Perfect",
+//     "difficulty_level": 5,
+//     "frequency_rank": 9,
+//     "category": "tenses",
+//     "tags": ["basic", "intermediate", "past_connection"],
+//     "metadata": {},
 //     "created_at": "2025-10-01T10:30:00Z",
 //     "updated_at": "2025-10-01T10:30:00Z"
 //   },
-
-//   "grammar_definition": {
-//     "id": "gdef_001",
-//     "grammar_item_id": "grammar_001",
-//     "description": "The Present Perfect Continuous tense",
-//     "explanation": "Used to describe actions that started in the past and are still continuing or have just finished, emphasizing the duration of the activity.",
-//     "structure": "Subject + have/has + been + verb-ing",
-//     "translation": "Thì Hiện tại Hoàn thành Tiếp diễn dùng để diễn tả hành động bắt đầu trong quá khứ và vẫn đang tiếp diễn hoặc vừa mới kết thúc, nhấn mạnh vào khoảng thời gian của hành động.",
-//     "language_code": "vi",
-//     "created_at": "2025-10-01T10:30:00Z"
-//   },
-
+//
+//   "grammar_rules": [
+//     {
+//       "id": "rule_001",
+//       "grammar_item_id": "grammar_001",
+//       "rule_description": "Used for actions that happened at an unspecified time before now",
+//       "translation": "Dùng cho hành động đã xảy ra tại thời điểm không xác định trước bây giờ",
+//       "formula": "Subject + have/has + past participle",
+//       "usage_context": "Experience, completed actions with present relevance, actions that started in the past and continue to present",
+//       "notes": "Often used with: ever, never, already, yet, just, since, for",
+//       "created_at": "2025-10-01T10:30:00Z"
+//     }
+//   ],
+//
 //   "grammar_examples": [
 //     {
-//       "id": "gex_001",
-//       "grammar_definition_id": "gdef_001",
-//       "sentence": "I have been studying English for 5 years.",
-//       "translation": "Tôi đã học tiếng Anh được 5 năm rồi.",
-//       "usage_note": "Hành động bắt đầu trong quá khứ và vẫn tiếp tục đến hiện tại",
-//       "language_code": "vi",
+//       "id": "ex_001a",
+//       "grammar_rule_id": "rule_001",
+//       "sentence": "I have visited Paris three times.",
+//       "translation": "Tôi đã đến Paris ba lần.",
+//       "is_correct": true,
+//       "explanation": "Experience - no specific time mentioned",
 //       "created_at": "2025-10-01T10:30:00Z"
-//     }
-//   ],
-
-//   "grammar_mistakes": [
+//     },
 //     {
-//       "id": "gmis_001",
-//       "grammar_item_id": "grammar_001",
-//       "incorrect_example": "I am studying English for 5 years.",
-//       "correct_example": "I have been studying English for 5 years.",
-//       "explanation": "Sai thì - cần dùng Present Perfect Continuous để diễn tả hành động kéo dài từ quá khứ đến hiện tại",
+//       "id": "ex_001b",
+//       "grammar_rule_id": "rule_001",
+//       "sentence": "She has just finished her homework.",
+//       "translation": "Cô ấy vừa mới hoàn thành bài tập.",
+//       "is_correct": true,
+//       "explanation": "Recent completed action with 'just'",
+//       "created_at": "2025-10-01T10:30:00Z"
+//     },
+//     {
+//       "id": "ex_001c",
+//       "grammar_rule_id": "rule_001",
+//       "sentence": "I have visited Paris yesterday.",
+//       "translation": "Tôi đã đến Paris hôm qua.",
+//       "is_correct": false,
+//       "explanation": "Cannot use Present Perfect with specific past time (yesterday). Use Simple Past instead.",
 //       "created_at": "2025-10-01T10:30:00Z"
 //     }
 //   ],
-
-//   "grammar_metadata": {
-//     "id": "gmeta_001",
-//     "grammar_item_id": "grammar_001",
-//     "difficulty_level": 6,
-//     "frequency_rank": 5,
-//     "category": "intermediate",
-//     "tags": ["common", "spoken", "formal"],
-//     "is_active": true,
-//     "created_at": "2025-10-01T10:30:00Z",
-//     "updated_at": "2025-10-01T10:30:00Z"
-//   },
-
+//
+//   "grammar_common_mistakes": [
+//     {
+//       "id": "mistake_001",
+//       "grammar_item_id": "grammar_001",
+//       "incorrect_example": "I have seen him yesterday.",
+//       "correct_example": "I saw him yesterday.",
+//       "explanation": "Don't use Present Perfect with specific past time expressions",
+//       "translation": "Không dùng Present Perfect với thời gian quá khứ cụ thể",
+//       "created_at": "2025-10-01T10:30:00Z"
+//     }
+//   ],
+//
 //   "grammar_analytics": {
-//     "id": "gana_001",
+//     "id": "analytics_001",
 //     "grammar_item_id": "grammar_001",
-//     "mastery_score": 72,
-//     "times_seen": 15,
-//     "times_correct": 11,
-//     "times_incorrect": 4,
-//     "first_learned_at": "2025-09-15T14:20:00Z",
-//     "last_reviewed_at": "2025-10-05T09:15:00Z",
-//     "last_seen_at": "2025-10-07T16:45:00Z",
-//     "created_at": "2025-09-15T14:20:00Z",
-//     "updated_at": "2025-10-07T16:45:00Z"
+//     "mastery_score": 70,
+//     "last_reviewed_at": "2025-10-13T08:20:00Z",
+//     "created_at": "2025-10-01T10:30:00Z",
+//     "updated_at": "2025-10-13T08:20:00Z"
+//   }
+// }
+//
+// Example 2: Conditional Sentences Type 2
+// {
+//   "grammar_item": {
+//     "id": "grammar_002",
+//     "item_type": "structure",
+//     "title": "Conditional Sentences Type 2",
+//     "difficulty_level": 6,
+//     "frequency_rank": 7,
+//     "category": "conditionals",
+//     "tags": ["intermediate", "hypothetical", "unreal_present"],
+//     "metadata": {},
+//     "created_at": "2025-10-13T10:00:00Z",
+//     "updated_at": "2025-10-13T10:00:00Z"
+//   },
+//
+//   "grammar_rules": [
+//     {
+//       "id": "rule_002",
+//       "grammar_item_id": "grammar_002",
+//       "rule_description": "Used for unreal or unlikely situations in the present or future",
+//       "translation": "Dùng cho tình huống không có thật hoặc không thể xảy ra ở hiện tại hoặc tương lai",
+//       "formula": "If + subject + past simple, subject + would/could/might + base verb",
+//       "usage_context": "Hypothetical situations, giving advice, imagining different present",
+//       "notes": "Use 'were' for all persons with 'be' verb (If I were you...)",
+//       "created_at": "2025-10-13T10:00:00Z"
+//     }
+//   ],
+//
+//   "grammar_examples": [
+//     {
+//       "id": "ex_002a",
+//       "grammar_rule_id": "rule_002",
+//       "sentence": "If I had a million dollars, I would travel the world.",
+//       "translation": "Nếu tôi có một triệu đô la, tôi sẽ đi du lịch vòng quanh thế giới.",
+//       "is_correct": true,
+//       "explanation": "Hypothetical situation - I don't have a million dollars",
+//       "created_at": "2025-10-13T10:00:00Z"
+//     },
+//     {
+//       "id": "ex_002b",
+//       "grammar_rule_id": "rule_002",
+//       "sentence": "If I were you, I would accept the job offer.",
+//       "translation": "Nếu tôi là bạn, tôi sẽ chấp nhận lời đề nghị công việc.",
+//       "is_correct": true,
+//       "explanation": "Giving advice using 'were' (not 'was')",
+//       "created_at": "2025-10-13T10:00:00Z"
+//     }
+//   ],
+//
+//   "grammar_common_mistakes": [
+//     {
+//       "id": "mistake_002",
+//       "grammar_item_id": "grammar_002",
+//       "incorrect_example": "If I would have time, I would help you.",
+//       "correct_example": "If I had time, I would help you.",
+//       "explanation": "Don't use 'would' in the if-clause of Type 2 conditionals",
+//       "translation": "Không dùng 'would' trong mệnh đề if của câu điều kiện loại 2",
+//       "created_at": "2025-10-13T10:00:00Z"
+//     }
+//   ],
+//
+//   "grammar_analytics": {
+//     "id": "analytics_002",
+//     "grammar_item_id": "grammar_002",
+//     "mastery_score": 65,
+//     "last_reviewed_at": "2025-10-13T14:30:00Z",
+//     "created_at": "2025-10-13T10:00:00Z",
+//     "updated_at": "2025-10-13T14:30:00Z"
 //   }
 // }
