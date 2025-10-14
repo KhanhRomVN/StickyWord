@@ -12,10 +12,12 @@ const CollectionPage = () => {
 
   useEffect(() => {
     const path = location.pathname
-    if (path.includes('/content/words')) {
-      setFilterType('word')
-    } else if (path.includes('/content/phrases')) {
-      setFilterType('phrase')
+    if (path.includes('/collection/words')) {
+      setFilterType('word') // ✅ Không có 's'
+    } else if (path.includes('/collection/phrases')) {
+      setFilterType('phrase') // ✅ Không có 's'
+    } else if (path.includes('/collection/grammar')) {
+      setFilterType('grammar') // ✅ Thêm case này
     } else {
       setFilterType('all')
     }

@@ -12,6 +12,14 @@ import {
   AIPhraseResult
 } from '../../../services/CreateCollectionService'
 
+const PHRASE_TYPES = [
+  { value: 'idiom', label: 'Idiom' },
+  { value: 'phrasal_verb', label: 'Phrasal Verb' },
+  { value: 'collocation', label: 'Collocation' },
+  { value: 'slang', label: 'Slang' },
+  { value: 'expression', label: 'Expression' }
+]
+
 interface CreatePhraseContentProps {
   isOpen: boolean
   onClose: () => void
@@ -36,14 +44,6 @@ interface PhraseFormData {
   tags: string[]
   metadata: Record<string, any>
 }
-
-const PHRASE_TYPES = [
-  { value: 'idiom', label: 'Idiom' },
-  { value: 'phrasal_verb', label: 'Phrasal Verb' },
-  { value: 'collocation', label: 'Collocation' },
-  { value: 'slang', label: 'Slang' },
-  { value: 'expression', label: 'Expression' }
-]
 
 const DIFFICULTY_LEVELS = [
   { value: '1', label: 'Level 1 - Very Easy' },
@@ -246,7 +246,6 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
       const service = createCreateCollectionService(selectedApiKey.key)
       const aiData: AIPhraseResult = await service.fetchSinglePhrase(formData.content.trim())
 
-      // Flatten nested metadata object
       const flattenMetadata = (obj: Record<string, any>, prefix = ''): Record<string, any> => {
         const flattened: Record<string, any> = {}
 
@@ -273,7 +272,11 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
                 phraseType: aiData.phraseType || def.phraseType || ''
               }))
             : prev.definitions,
-        metadata: flattenMetadata(aiData.usage || {})
+        difficulty_level: aiData.difficulty_level || prev.difficulty_level,
+        frequency_rank: aiData.frequency_rank || prev.frequency_rank,
+        category: aiData.category || prev.category,
+        tags: aiData.tags || prev.tags,
+        metadata: flattenMetadata(aiData.metadata || {})
       }))
 
       console.log('[CreatePhraseContent] AI data fetched successfully:', aiData)
@@ -295,6 +298,11 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
       return
     }
 
+    const metadataWithDefinitions = {
+      ...formData.metadata,
+      definitions: formData.definitions
+    }
+
     const newItem: vocabulary_item = {
       id: `vocab_${Date.now()}`,
       item_type: 'phrase',
@@ -305,7 +313,8 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
       frequency_rank: formData.frequency_rank > 0 ? (formData.frequency_rank as any) : undefined,
       category: formData.category || undefined,
       tags: formData.tags.length > 0 ? formData.tags : undefined,
-      metadata: Object.keys(formData.metadata).length > 0 ? formData.metadata : undefined,
+      metadata:
+        Object.keys(metadataWithDefinitions).length > 0 ? metadataWithDefinitions : undefined,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -378,7 +387,7 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
                 type="text"
                 value={formData.content}
                 onChange={handleContentChange}
-                placeholder="vd: break the ice, give up"
+                placeholder="vd: break the ice, take off"
                 variant="default"
                 size="sm"
               />

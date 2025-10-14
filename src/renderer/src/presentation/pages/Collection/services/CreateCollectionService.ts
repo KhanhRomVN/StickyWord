@@ -36,11 +36,12 @@ export interface AIPhraseResult {
   ipaNotation: string
   phraseType: string
   pronunciation?: string
+  difficulty_level?: number
+  frequency_rank?: number
+  category?: string
+  tags?: string[]
+  metadata?: Record<string, any>
   definitions: WordDefinition[]
-  usage?: {
-    context: string
-    formality: string
-  }
 }
 
 export interface AIGrammarResult {
@@ -293,10 +294,24 @@ Return information in this JSON structure:
       "pronunciation": "simple pronunciation guide",
       "ipaNotation": "IPA notation with / /",
       "phraseType": "idiom|phrasal_verb|collocation|slang|expression",
+      "difficulty_level": 1-10 (1=very easy, 10=very hard),
+      "frequency_rank": 1-10 (1=very rare, 10=very common),
+      "category": "business|daily|travel|academic",
+      "tags": ["tag1", "tag2", "tag3"],
+      "metadata": {
+        "origin": "phrase origin and history",
+        "similar_phrases": ["phrase1", "phrase2"],
+        "opposite_phrases": ["phrase1", "phrase2"],
+        "register": "formal/informal/neutral",
+        "common_contexts": ["context1", "context2"],
+        "cultural_note": "cultural context if any",
+        "learning_tip": "helpful tip for remembering"
+      },
       "definitions": [
         {
           "meaning": "Clear English definition",
           "translation": "Accurate Vietnamese translation",
+          "phraseType": "idiom|phrasal_verb|collocation|slang|expression",
           "examples": [
             {
               "sentence": "Natural example in context",
@@ -309,17 +324,20 @@ Return information in this JSON structure:
           ]
         }
       ],
-      "usage": {
-        "context": "formal|informal|neutral",
-        "formality": "casual|professional|academic"
-      }
     }
   ]
 }
 
-IMPORTANT:
+IMPORTANT RULES:
 - The phrase must have at least 1 definition with 2 examples
-- Include usage context (formal/informal/neutral)
+- difficulty_level (1-10), frequency_rank (1-10), category, and tags are REQUIRED fields
+- Tags should be relevant to the phrase (e.g., ["informal", "common", "spoken", "business"])
+- metadata is a FLAT object with simple key-value pairs (NO nested objects)
+- Use ONLY these data types: string, number, boolean, array
+- Be creative with field names! Examples: origin, cultural_note, register, similar_phrases, etc.
+- Arrays should contain simple strings only
+- NO nested objects inside metadata
+- More metadata fields = better learning experience
 - Vietnamese translations must be natural and accurate
 - Return ONLY valid JSON, no other text`
   }
@@ -339,10 +357,21 @@ For EACH phrase, return information in this JSON structure:
       "pronunciation": "simple pronunciation guide",
       "ipaNotation": "IPA notation with / /",
       "phraseType": "idiom|phrasal_verb|collocation|slang|expression",
+      "difficulty_level": 1-10 (1=very easy, 10=very hard),
+      "frequency_rank": 1-10 (1=very rare, 10=very common),
+      "category": "business|daily|travel|academic",
+      "tags": ["tag1", "tag2", "tag3"],
+      "metadata": {
+        "origin": "phrase origin",
+        "similar_phrases": ["phrase1", "phrase2"],
+        "register": "formal/informal/neutral",
+        "learning_tip": "helpful tip"
+      },
       "definitions": [
         {
           "meaning": "Clear English definition",
           "translation": "Accurate Vietnamese translation",
+          "phraseType": "idiom|phrasal_verb|collocation|slang|expression",
           "examples": [
             {
               "sentence": "Natural example in context",
@@ -351,17 +380,16 @@ For EACH phrase, return information in this JSON structure:
           ]
         }
       ],
-      "usage": {
-        "context": "formal|informal|neutral",
-        "formality": "casual|professional|academic"
-      }
     }
   ]
 }
 
-IMPORTANT:
+IMPORTANT RULES:
 - Return information for ALL ${phrases.length} phrases
 - Each phrase must have at least 1 definition with 2 examples
+- difficulty_level (1-10), frequency_rank (1-10), category, and tags are REQUIRED fields
+- Tags should be relevant to each phrase
+- metadata is a FLAT object - be creative with field names
 - Include usage context (formal/informal/neutral)
 - Vietnamese translations must be natural and accurate
 - Return ONLY valid JSON, no other text`

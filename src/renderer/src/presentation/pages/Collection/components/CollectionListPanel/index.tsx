@@ -118,14 +118,14 @@ const CollectionListPanel = ({
       <div className="flex-shrink-0 border-b border-border-default p-4 space-y-3">
         {/* Title và Create Button */}
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">Bộ sưu tập</h2>
+          <h2 className="text-lg font-semibold text-text-primary">Collection</h2>
           <CustomButton
             size="sm"
             variant="primary"
             icon={Plus}
             onClick={() => setIsCreateModalOpen(true)}
           >
-            Thêm
+            Add
           </CustomButton>
         </div>
 
