@@ -278,8 +278,6 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
         tags: aiData.tags || prev.tags,
         metadata: flattenMetadata(aiData.metadata || {})
       }))
-
-      console.log('[CreatePhraseContent] AI data fetched successfully:', aiData)
     } catch (error) {
       console.error('[CreatePhraseContent] AI Error:', error)
       setAiError(

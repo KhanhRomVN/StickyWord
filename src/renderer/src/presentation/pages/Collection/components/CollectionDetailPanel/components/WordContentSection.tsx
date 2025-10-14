@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { API } from '../../../../../../../../preload/index'
 import { vocabulary_item } from '../../../types/vocabulary'
 import CustomInput from '../../../../../../components/common/CustomInput'
 import CustomCombobox from '../../../../../../components/common/CustomCombobox'
@@ -6,6 +7,12 @@ import CustomTag from '../../../../../../components/common/CustomTag'
 import Metadata from '../../../../../../components/common/Metadata'
 import CustomButton from '../../../../../../components/common/CustomButton'
 import { Plus, Trash2, Check, ChevronDown, ChevronRight } from 'lucide-react'
+
+declare global {
+  interface Window {
+    api?: API
+  }
+}
 
 interface WordContentSectionProps {
   item: vocabulary_item
@@ -105,11 +112,6 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
 
   // Start editing field
   const startEditField = (fieldKey: string) => {
-    console.log('[WordContentSection] startEditField called:', {
-      fieldKey,
-      currentEditingState: editingFields[fieldKey]
-    })
-
     let currentValue = ''
 
     if (fieldKey === 'content') {
@@ -147,19 +149,12 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
           pendingValue: currentValue
         }
       }
-      console.log('[WordContentSection] New editingFields state:', newState)
       return newState
     })
   }
 
   // Handle input change while editing
   const handleFieldChange = (fieldKey: string, value: string) => {
-    console.log('[WordContentSection] handleFieldChange called:', {
-      fieldKey,
-      value,
-      currentEditingState: editingFields[fieldKey]
-    })
-
     setEditingFields((prev) => {
       const newState = {
         ...prev,
@@ -168,18 +163,12 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
           pendingValue: value
         }
       }
-      console.log('[WordContentSection] Updated editingFields after change:', newState)
       return newState
     })
   }
 
   // Confirm field change
   const confirmFieldChange = async (fieldKey: string) => {
-    console.log('[WordContentSection] confirmFieldChange called:', {
-      fieldKey,
-      pendingValue: editingFields[fieldKey]?.pendingValue
-    })
-
     const newValue = editingFields[fieldKey]?.pendingValue || ''
 
     // Biến để lưu definitions mới sau khi update
@@ -238,11 +227,8 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
         updated_at: new Date().toISOString()
       }
 
-      console.log('[WordContentSection] Saving to database:', updatedItem)
-
       if (window.api?.vocabulary?.update) {
         await window.api.vocabulary.update(updatedItem)
-        console.log('[WordContentSection] Field updated successfully:', fieldKey)
 
         // Cập nhật currentItem - điều này rất quan trọng!
         setCurrentItem(updatedItem as vocabulary_item)
@@ -256,7 +242,6 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
     setEditingFields((prev) => {
       const newState = { ...prev }
       delete newState[fieldKey]
-      console.log('[WordContentSection] Cleared editing state, new state:', newState)
       return newState
     })
   }
@@ -365,25 +350,6 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
     }
   }
 
-  // Kiểm tra định nghĩa cụ thể có thay đổi không
-  const hasDefinitionChanged = (defIndex: number): boolean => {
-    const initialDef = getInitialDefinitions()[defIndex]
-    const currentDef = formData.definitions[defIndex]
-
-    if (!initialDef || !currentDef) return false
-
-    if (currentDef.meaning !== initialDef.meaning) return true
-    if (currentDef.translation !== initialDef.translation) return true
-    if (currentDef.word_type !== initialDef.word_type) return true
-
-    if (currentDef.examples.length !== initialDef.examples.length) return true
-
-    return currentDef.examples.some((ex, exIndex) => {
-      const initialEx = initialDef.examples[exIndex]
-      return ex.sentence !== initialEx.sentence || ex.translation !== initialEx.translation
-    })
-  }
-
   // Definitions handlers
   const handleDefinitionChange = (defIndex: number, field: string, value: string) => {
     setFormData((prev) => {
@@ -391,18 +357,6 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
       if (field === 'meaning' || field === 'translation' || field === 'word_type') {
         newDefs[defIndex] = { ...newDefs[defIndex], [field]: value }
       }
-      return { ...prev, definitions: newDefs }
-    })
-  }
-
-  const handleExampleChange = (defIndex: number, exIndex: number, field: string, value: string) => {
-    setFormData((prev) => {
-      const newDefs = [...prev.definitions]
-      const newExamples = [...newDefs[defIndex].examples]
-      if (field === 'sentence' || field === 'translation') {
-        newExamples[exIndex] = { ...newExamples[exIndex], [field]: value }
-      }
-      newDefs[defIndex] = { ...newDefs[defIndex], examples: newExamples }
       return { ...prev, definitions: newDefs }
     })
   }
@@ -824,7 +778,7 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
 
                     {examplesExpanded[defIndex] && (
                       <div className="space-y-2">
-                        {def.examples.map((example: any, exIndex: number) => (
+                        {def.examples.map((_: any, exIndex: number) => (
                           <div key={exIndex} className="p-3 bg-card-background rounded space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-text-secondary">

@@ -22,7 +22,7 @@ export const useDatabase = () => {
       // Kiểm tra xem có database path trong localStorage không
       const savedDbPath = localStorage.getItem('db-path')
 
-      if (savedDbPath) {
+      if (savedDbPath && window.api) {
         // Verify database còn tồn tại
         const exists = await window.api.fileSystem.exists(savedDbPath)
 
@@ -53,6 +53,8 @@ export const useDatabase = () => {
 
   const createNewDatabase = async (path: string) => {
     try {
+      if (!window.api) throw new Error('API not available')
+
       await window.api.sqlite.createDatabase(path)
       localStorage.setItem('db-path', path)
       setState({
@@ -69,6 +71,8 @@ export const useDatabase = () => {
 
   const selectExistingDatabase = async (path: string) => {
     try {
+      if (!window.api) throw new Error('API not available')
+
       // Kiểm tra file có tồn tại không
       const exists = await window.api.fileSystem.exists(path)
       if (!exists) {
@@ -78,7 +82,9 @@ export const useDatabase = () => {
       // Thử mở database để validate
       await window.api.sqlite.openDatabase(path)
 
-      if (!isValid) {
+      // Kiểm tra database connection status
+      const status = await window.api.sqlite.status()
+      if (!status.isConnected) {
         throw new Error('Invalid database file')
       }
 

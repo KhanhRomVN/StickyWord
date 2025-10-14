@@ -96,11 +96,6 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
   }
 
   const startEditField = (fieldKey: string) => {
-    console.log('[PhraseContentSection] startEditField called:', {
-      fieldKey,
-      currentEditingState: editingFields[fieldKey]
-    })
-
     let currentValue = ''
 
     if (fieldKey === 'content') {
@@ -138,18 +133,11 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
           pendingValue: currentValue
         }
       }
-      console.log('[PhraseContentSection] New editingFields state:', newState)
       return newState
     })
   }
 
   const handleFieldChange = (fieldKey: string, value: string) => {
-    console.log('[PhraseContentSection] handleFieldChange called:', {
-      fieldKey,
-      value,
-      currentEditingState: editingFields[fieldKey]
-    })
-
     setEditingFields((prev) => {
       const newState = {
         ...prev,
@@ -158,17 +146,11 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
           pendingValue: value
         }
       }
-      console.log('[PhraseContentSection] Updated editingFields after change:', newState)
       return newState
     })
   }
 
   const confirmFieldChange = async (fieldKey: string) => {
-    console.log('[PhraseContentSection] confirmFieldChange called:', {
-      fieldKey,
-      pendingValue: editingFields[fieldKey]?.pendingValue
-    })
-
     const newValue = editingFields[fieldKey]?.pendingValue || ''
     let updatedDefinitions = [...formData.definitions]
 
@@ -222,11 +204,8 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         updated_at: new Date().toISOString()
       }
 
-      console.log('[PhraseContentSection] Saving to database:', updatedItem)
-
       if (window.api?.vocabulary?.update) {
         await window.api.vocabulary.update(updatedItem)
-        console.log('[PhraseContentSection] Field updated successfully:', fieldKey)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -237,7 +216,6 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
     setEditingFields((prev) => {
       const newState = { ...prev }
       delete newState[fieldKey]
-      console.log('[PhraseContentSection] Cleared editing state, new state:', newState)
       return newState
     })
   }
@@ -350,18 +328,6 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
       if (field === 'meaning' || field === 'translation' || field === 'phrase_type') {
         newDefs[defIndex] = { ...newDefs[defIndex], [field]: value }
       }
-      return { ...prev, definitions: newDefs }
-    })
-  }
-
-  const handleExampleChange = (defIndex: number, exIndex: number, field: string, value: string) => {
-    setFormData((prev) => {
-      const newDefs = [...prev.definitions]
-      const newExamples = [...newDefs[defIndex].examples]
-      if (field === 'sentence' || field === 'translation') {
-        newExamples[exIndex] = { ...newExamples[exIndex], [field]: value }
-      }
-      newDefs[defIndex] = { ...newDefs[defIndex], examples: newExamples }
       return { ...prev, definitions: newDefs }
     })
   }
@@ -769,7 +735,7 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
 
                     {examplesExpanded[defIndex] && (
                       <div className="space-y-2">
-                        {def.examples.map((example: any, exIndex: number) => (
+                        {def.examples.map((_example: any, exIndex: number) => (
                           <div key={exIndex} className="p-3 bg-card-background rounded space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="text-xs text-text-secondary">

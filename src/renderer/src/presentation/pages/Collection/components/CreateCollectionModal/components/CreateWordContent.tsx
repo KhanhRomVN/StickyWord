@@ -281,8 +281,6 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
         tags: aiData.tags || prev.tags,
         metadata: flattenMetadata(aiData.metadata || {})
       }))
-
-      console.log('[CreateWordContent] AI data fetched successfully:', aiData)
     } catch (error) {
       console.error('[CreateWordContent] AI Error:', error)
       setAiError(

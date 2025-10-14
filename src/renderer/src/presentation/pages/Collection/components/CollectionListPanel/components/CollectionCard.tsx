@@ -13,26 +13,10 @@ function isGrammarItem(item: vocabulary_item | grammar_item): item is grammar_it
   const hasContent = 'content' in item
   const result = hasTitle && !hasContent
 
-  console.log('[CollectionCard] Type guard check:', {
-    id: item.id,
-    has_title: hasTitle,
-    has_content: hasContent,
-    is_grammar: result,
-    item_type: item.item_type,
-    title: (item as any).title,
-    content: (item as any).content
-  })
-
   return result
 }
 
 const CollectionCard = ({ item, isSelected, onClick }: CollectionCardProps) => {
-  console.log('[CollectionCard] Rendering item:', {
-    id: item.id,
-    item_type: item.item_type,
-    is_grammar: isGrammarItem(item)
-  })
-
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'word':
@@ -90,9 +74,6 @@ const CollectionCard = ({ item, isSelected, onClick }: CollectionCardProps) => {
 
   // ✅ Get display text based on item type
   const displayText = isGrammarItem(item) ? item.title : item.content
-
-  console.log('[CollectionCard] Display text:', displayText)
-
   return (
     <div
       className={`p-4 border-b border-border-default cursor-pointer transition-all duration-200 ${

@@ -3,34 +3,30 @@ import { useLocation } from 'react-router-dom'
 import CollectionListPanel from './components/CollectionListPanel'
 import CollectionDetailPanel from './components/CollectionDetailPanel'
 import { vocabulary_item } from './types/vocabulary'
-import { grammar_item } from './types/grammar' // ✅ Import grammar_item
+import { grammar_item } from './types/grammar'
 
 const CollectionPage = () => {
-  const [selectedItem, setSelectedItem] = useState<vocabulary_item | grammar_item | null>(null) // ✅ Add grammar_item
+  const [selectedItem, setSelectedItem] = useState<vocabulary_item | grammar_item | null>(null)
   const location = useLocation()
-  const [filterType, setFilterType] = useState<'all' | vocabulary_item['item_type']>('all')
+  const [filterType, setFilterType] = useState<'all' | vocabulary_item['item_type'] | 'grammar'>(
+    'all'
+  )
 
   useEffect(() => {
     const path = location.pathname
-    console.log('[CollectionPage] Route changed:', path)
 
     if (path.includes('/collection/words')) {
-      console.log('[CollectionPage] Setting filter: word')
       setFilterType('word')
     } else if (path.includes('/collection/phrases')) {
-      console.log('[CollectionPage] Setting filter: phrase')
       setFilterType('phrase')
     } else if (path.includes('/collection/grammar')) {
-      console.log('[CollectionPage] Setting filter: grammar')
       setFilterType('grammar')
     } else {
-      console.log('[CollectionPage] Setting filter: all')
       setFilterType('all')
     }
   }, [location.pathname])
 
-  const handleItemDeleted = (itemId: string) => {
-    console.log('[CollectionPage] Item deleted:', itemId)
+  const handleItemDeleted = () => {
     setSelectedItem(null)
   }
 

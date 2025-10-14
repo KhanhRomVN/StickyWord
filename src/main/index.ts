@@ -79,7 +79,6 @@ const initializeDatabaseSchema = async (database: Database): Promise<void> => {
             console.error('Error creating example table:', err)
             reject(err)
           } else {
-            console.log('[Main] Database schema initialized successfully')
             resolve()
           }
         }
@@ -103,7 +102,6 @@ const initializeDatabaseSchema = async (database: Database): Promise<void> => {
             console.error('Error creating grammar_item table:', err)
             reject(err)
           } else {
-            console.log('[Main] grammar_item table created')
             resolve()
           }
         }
@@ -166,7 +164,7 @@ function setupStorageHandlers() {
   ipcMain.handle('storage:set', async (_event, key: string, value: any) => {
     try {
       const storagePath = getStorageFilePath()
-      let data = {}
+      let data: Record<string, any> = {}
 
       // Read existing data if file exists
       if (fs.existsSync(storagePath)) {
@@ -461,21 +459,11 @@ function setupDatabaseHandlers() {
   ipcMain.handle('vocabulary:save', async (_event, item: any) => {
     try {
       if (!db) throw new Error('Database not connected')
-
-      console.log('[vocabulary:save] ========== START SAVE ==========')
-      console.log('[vocabulary:save] Received item:', JSON.stringify(item, null, 2))
-
-      // ✅ Phân biệt vocabulary_item và grammar_item
       const isGrammar = 'title' in item && !('content' in item)
-      console.log('[vocabulary:save] Is grammar item?', isGrammar)
-
       let query: string
       let params: any[]
 
       if (isGrammar) {
-        // Grammar item - INSERT
-        console.log('[vocabulary:save] 🟢 Saving as GRAMMAR ITEM')
-
         query = `
         INSERT INTO grammar_item (
           id, item_type, title,
@@ -496,13 +484,7 @@ function setupDatabaseHandlers() {
           item.created_at,
           item.updated_at
         ]
-
-        console.log('[vocabulary:save] Grammar INSERT query:', query)
-        console.log('[vocabulary:save] Grammar params:', params)
       } else {
-        // Vocabulary item (word/phrase)
-        console.log('[vocabulary:save] 🔵 Saving as VOCABULARY ITEM')
-
         query = `
         INSERT INTO vocabulary_item (
           id, item_type, content, pronunciation,
@@ -524,9 +506,6 @@ function setupDatabaseHandlers() {
           item.created_at,
           item.updated_at
         ]
-
-        console.log('[vocabulary:save] Vocabulary INSERT query:', query)
-        console.log('[vocabulary:save] Vocabulary params:', params)
       }
 
       return new Promise((resolve, reject) => {
@@ -535,9 +514,6 @@ function setupDatabaseHandlers() {
             console.error('[vocabulary:save] ❌ SQL Error:', err)
             reject(err)
           } else {
-            console.log('[vocabulary:save] ✅ Save successful!')
-            console.log('[vocabulary:save] Result:', { id: item.id, changes: this.changes })
-            console.log('[vocabulary:save] ========== END SAVE ==========')
             resolve({ id: item.id, changes: this.changes })
           }
         })
@@ -551,9 +527,6 @@ function setupDatabaseHandlers() {
   ipcMain.handle('vocabulary:getAll', async (_event, filterType?: string) => {
     try {
       if (!db) throw new Error('Database not connected')
-
-      console.log('[vocabulary:getAll] ========== START GET ALL ==========')
-      console.log('[vocabulary:getAll] Filter type:', filterType)
 
       let vocabularyItems: any[] = []
       let grammarItems: any[] = []
@@ -570,9 +543,6 @@ function setupDatabaseHandlers() {
 
         vocabQuery += ' ORDER BY created_at DESC'
 
-        console.log('[vocabulary:getAll] 🔵 Vocabulary query:', vocabQuery)
-        console.log('[vocabulary:getAll] 🔵 Vocabulary params:', vocabParams)
-
         vocabularyItems = await new Promise((resolve, reject) => {
           db!.all(vocabQuery, vocabParams, (err, rows: any[]) => {
             if (err) {
@@ -584,10 +554,6 @@ function setupDatabaseHandlers() {
                 tags: row.tags ? JSON.parse(row.tags) : [],
                 metadata: row.metadata ? JSON.parse(row.metadata) : {}
               }))
-              console.log('[vocabulary:getAll] ✅ Vocabulary items found:', items.length)
-              if (items.length > 0) {
-                console.log('[vocabulary:getAll] First vocabulary item:', items[0])
-              }
               resolve(items)
             }
           })
@@ -597,9 +563,6 @@ function setupDatabaseHandlers() {
       // Query grammar_item (grammar points with any item_type)
       if (!filterType || filterType === 'all' || filterType === 'grammar') {
         const grammarQuery = 'SELECT * FROM grammar_item ORDER BY created_at DESC'
-
-        console.log('[vocabulary:getAll] 🟢 Grammar query:', grammarQuery)
-
         grammarItems = await new Promise((resolve, reject) => {
           db!.all(grammarQuery, [], (err, rows: any[]) => {
             if (err) {
@@ -611,19 +574,6 @@ function setupDatabaseHandlers() {
                 tags: row.tags ? JSON.parse(row.tags) : [],
                 metadata: row.metadata ? JSON.parse(row.metadata) : {}
               }))
-              console.log('[vocabulary:getAll] ✅ Grammar items found:', items.length)
-              if (items.length > 0) {
-                console.log('[vocabulary:getAll] Grammar items detail:')
-                items.forEach((item, index) => {
-                  console.log(`  [${index}]:`, {
-                    id: item.id,
-                    title: item.title,
-                    item_type: item.item_type,
-                    has_content: 'content' in item,
-                    has_title: 'title' in item
-                  })
-                })
-              }
               resolve(items)
             }
           })
@@ -634,12 +584,6 @@ function setupDatabaseHandlers() {
       const allItems = [...vocabularyItems, ...grammarItems].sort((a, b) => {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       })
-
-      console.log('[vocabulary:getAll] ========== SUMMARY ==========')
-      console.log('[vocabulary:getAll] Total vocabulary items:', vocabularyItems.length)
-      console.log('[vocabulary:getAll] Total grammar items:', grammarItems.length)
-      console.log('[vocabulary:getAll] Total merged items:', allItems.length)
-      console.log('[vocabulary:getAll] ========== END GET ALL ==========')
 
       return allItems
     } catch (error) {
@@ -779,11 +723,9 @@ app.whenReady().then(async () => {
             console.error('Error initializing database:', err)
             reject(err)
           } else {
-            console.log('[Main] Database initialized at:', dbPath)
             try {
               // Initialize schema
               await initializeDatabaseSchema(db!)
-              console.log('[Main] Database schema initialized')
               resolve()
             } catch (schemaError) {
               console.error('[Main] Error initializing schema:', schemaError)

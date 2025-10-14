@@ -327,8 +327,6 @@ const CreateGrammarContent = ({ isOpen, onClose, onCreateSuccess }: CreateGramma
             : prev.commonMistakes,
         metadata: flattenMetadata(aiData.metadata || {})
       }))
-
-      console.log('[CreateGrammarContent] AI data fetched successfully:', aiData)
     } catch (error) {
       console.error('[CreateGrammarContent] AI Error:', error)
       setAiError(
@@ -342,9 +340,6 @@ const CreateGrammarContent = ({ isOpen, onClose, onCreateSuccess }: CreateGramma
   }, [formData.title, hasApiKeys, apiKeys])
 
   const handleCreate = () => {
-    console.log('[CreateGrammarContent] handleCreate called')
-    console.log('[CreateGrammarContent] formData:', JSON.stringify(formData, null, 2))
-
     if (!formData.title.trim()) {
       setAiError('Vui lòng nhập tiêu đề điểm ngữ pháp')
       return
@@ -371,12 +366,8 @@ const CreateGrammarContent = ({ isOpen, onClose, onCreateSuccess }: CreateGramma
       updated_at: new Date().toISOString()
     }
 
-    console.log('[CreateGrammarContent] ✅ Grammar item created:', JSON.stringify(newItem, null, 2))
-    console.log('[CreateGrammarContent] ✅ Calling onCreateSuccess with array:', [newItem])
-
     try {
       onCreateSuccess?.([newItem])
-      console.log('[CreateGrammarContent] ✅ onCreateSuccess called successfully')
     } catch (error) {
       console.error('[CreateGrammarContent] ❌ Error calling onCreateSuccess:', error)
     }

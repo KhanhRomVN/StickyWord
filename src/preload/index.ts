@@ -1,8 +1,38 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
+// Export API type for TypeScript
+export interface API {
+  sqlite: {
+    createDatabase: (path: string) => Promise<any>
+    openDatabase: (path: string) => Promise<any>
+    closeDatabase: () => Promise<any>
+    runQuery: (query: string, params?: any[]) => Promise<any>
+    getAllRows: (query: string, params?: any[]) => Promise<any>
+    getOneRow: (query: string, params?: any[]) => Promise<any>
+    status: () => Promise<{ isConnected: boolean; message: string }>
+  }
+  vocabulary: {
+    save: (item: any) => Promise<any>
+    getAll: (filterType?: string) => Promise<any[]>
+    delete: (id: string) => Promise<any>
+    update: (item: any) => Promise<any>
+  }
+  fileSystem: {
+    showSaveDialog: (options: any) => Promise<any>
+    showOpenDialog: (options: any) => Promise<any>
+    exists: (path: string) => Promise<boolean>
+    createDirectory: (path: string, options?: { recursive?: boolean }) => Promise<void>
+  }
+  storage: {
+    set: (key: string, value: any) => Promise<void>
+    get: (key: string) => Promise<any>
+    remove: (key: string) => Promise<void>
+  }
+}
+
 // Custom APIs for renderer
-const api = {
+const api: API = {
   sqlite: {
     createDatabase: (path: string) => ipcRenderer.invoke('sqlite:create', path),
     openDatabase: (path: string) => ipcRenderer.invoke('sqlite:open', path),
@@ -22,7 +52,8 @@ const api = {
     showSaveDialog: (options: any) => ipcRenderer.invoke('dialog:save', options),
     showOpenDialog: (options: any) => ipcRenderer.invoke('dialog:open', options),
     exists: (path: string) => ipcRenderer.invoke('fs:exists', path),
-    createDirectory: (path: string) => ipcRenderer.invoke('fs:createDirectory', path)
+    createDirectory: (path: string, options?: { recursive?: boolean }) =>
+      ipcRenderer.invoke('fs:createDirectory', path, options)
   },
   storage: {
     set: (key: string, value: any) => ipcRenderer.invoke('storage:set', key, value),

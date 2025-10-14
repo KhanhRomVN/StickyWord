@@ -15,9 +15,6 @@ const CollectionDetailPanel = ({ selectedItem, onItemDeleted }: CollectionDetail
     try {
       // Gọi API xóa từ database
       if (window.api?.vocabulary?.delete) {
-        const result = await window.api.vocabulary.delete(itemId)
-        console.log('[CollectionDetailPanel] Delete result:', result)
-
         // Notify parent component
         onItemDeleted?.(itemId)
       }
