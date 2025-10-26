@@ -109,14 +109,14 @@ const CustomModal: React.FC<CustomModalProps> = ({
             <div className="flex items-center gap-3">
               {footerActions && <div className="flex items-center gap-3 mr-3">{footerActions}</div>}
 
-              <CustomButton variant="secondary" size="md" onClick={handleCancel} className="w-fit">
+              <CustomButton variant="secondary" size="sm" onClick={handleCancel} className="w-fit">
                 {cancelText}
               </CustomButton>
 
               {actionText && onAction && (
                 <CustomButton
                   variant="primary"
-                  size="md"
+                  size="sm"
                   onClick={handleAction}
                   disabled={actionDisabled}
                   loading={actionLoading}

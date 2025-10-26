@@ -171,10 +171,8 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
   const confirmFieldChange = async (fieldKey: string) => {
     const newValue = editingFields[fieldKey]?.pendingValue || ''
 
-    // Biến để lưu definitions mới sau khi update
     let updatedDefinitions = [...formData.definitions]
 
-    // Update formData dựa vào fieldKey
     if (fieldKey === 'content') {
       setFormData((prev) => ({ ...prev, content: newValue }))
     } else if (fieldKey === 'pronunciation') {
@@ -208,12 +206,10 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
       setFormData((prev) => ({ ...prev, definitions: updatedDefinitions }))
     }
 
-    // Save to database
     try {
-      // Tạo updatedMetadata với definitions mới
       const updatedMetadata = {
         ...formData.metadata,
-        definitions: updatedDefinitions // ✅ Dùng updatedDefinitions thay vì formData.definitions
+        definitions: updatedDefinitions
       }
 
       const updatedItem = {
@@ -227,18 +223,20 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
         updated_at: new Date().toISOString()
       }
 
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
 
-        // Cập nhật currentItem - điều này rất quan trọng!
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
+      } else {
+        throw new Error('Database not connected')
       }
     } catch (error) {
       console.error('[WordContentSection] Error updating field:', error)
       alert(`Lỗi khi lưu: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
 
-    // Clear editing state
     setEditingFields((prev) => {
       const newState = { ...prev }
       delete newState[fieldKey]
@@ -260,8 +258,12 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
         difficulty_level: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -282,8 +284,12 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
         frequency_rank: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -304,8 +310,12 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
         category: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -323,8 +333,12 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
         tags: newTags,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -341,8 +355,12 @@ const WordContentSection = ({ item, onDelete }: WordContentSectionProps) => {
         metadata: newMetadata,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {

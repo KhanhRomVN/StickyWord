@@ -17,7 +17,8 @@ interface CollectionListPanelProps {
 const CollectionListPanel = ({
   onSelectItem,
   selectedItem,
-  defaultFilterType = 'all'
+  defaultFilterType = 'all',
+  onItemDeleted
 }: CollectionListPanelProps) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<FilterType>(defaultFilterType)
@@ -54,18 +55,53 @@ const CollectionListPanel = ({
     loadItems('all')
   }, [])
 
+  // Reload items when an item is deleted
+  useEffect(() => {
+    if (onItemDeleted) {
+      const handleDelete = async (itemId: string) => {
+        console.log('[CollectionListPanel] Reloading after delete:', itemId)
+        await loadItems(filterType)
+        onSelectItem(null)
+      }
+
+      // Store the handler for cleanup
+      const deleteHandler = (itemId: string) => handleDelete(itemId)
+      return () => {
+        // Cleanup if needed
+      }
+    }
+  }, [onItemDeleted, filterType, onSelectItem])
+
+  // Listen for item deletion events
+  useEffect(() => {
+    const handleItemDeletedEvent = (event: CustomEvent) => {
+      const { itemId } = event.detail
+      console.log('[CollectionListPanel] Item deleted event received:', itemId)
+      loadItems(filterType)
+      onSelectItem(null)
+    }
+
+    window.addEventListener('item-deleted', handleItemDeletedEvent as EventListener)
+
+    return () => {
+      window.removeEventListener('item-deleted', handleItemDeletedEvent as EventListener)
+    }
+  }, [filterType, onSelectItem])
+
   const loadItems = async (filter: FilterType) => {
     try {
       setIsLoading(true)
 
       const apiFilter = getApiFilterType(filter)
 
-      if (window.api?.vocabulary?.getAll) {
-        const response = await window.api.vocabulary.getAll(apiFilter)
+      const { getCloudDatabase } = await import('../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
 
+      if (db) {
+        const response = await db.getAllItems(apiFilter)
         setItems(response as (vocabulary_item | grammar_item)[])
       } else {
-        console.warn('[CollectionListPanel] ⚠️ API not available')
+        console.warn('[CollectionListPanel] ⚠️ Database not connected')
         setItems([])
       }
     } catch (error) {

@@ -290,7 +290,7 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
     }
   }, [formData.content, hasApiKeys, apiKeys])
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!formData.content.trim()) {
       setAiError('Vui lòng nhập cụm từ')
       return
@@ -317,9 +317,22 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
       updated_at: new Date().toISOString()
     }
 
-    onCreateSuccess?.([newItem])
-    handleReset()
-    onClose()
+    try {
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.saveVocabularyItem(newItem)
+        onCreateSuccess?.([newItem])
+        handleReset()
+        onClose()
+      } else {
+        setAiError('Không thể kết nối database')
+      }
+    } catch (error) {
+      console.error('[CreatePhraseContent] Error saving:', error)
+      setAiError(error instanceof Error ? error.message : 'Lỗi khi lưu')
+    }
   }
 
   const handleReset = () => {
@@ -354,8 +367,8 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
       onClose={handleCancel}
       title="Add new phrase"
       size="2xl"
-      actionText="Tạo"
-      cancelText="Hủy"
+      actionText="Create Phrase"
+      cancelText="Cancel"
       onAction={handleCreate}
       actionLoading={isLoadingAI}
       actionDisabled={isLoadingAI || !formData.content.trim()}
@@ -437,6 +450,7 @@ const CreatePhraseContent = ({ isOpen, onClose, onCreateSuccess }: CreatePhraseC
                   placeholder="Enter tag name..."
                   allowDuplicates={false}
                   className="mt-2"
+                  size="sm"
                 />
               </div>
 

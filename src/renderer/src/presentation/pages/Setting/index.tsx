@@ -1,7 +1,6 @@
 import { Settings as SettingsIcon } from 'lucide-react'
 import AppearanceSection from './components/AppearanceSection'
 import GeminiApiKeySection from './components/GeminiApiKeySection'
-import DatabaseSection from './components/DatabaseSection'
 import PopupBehaviorSection from './components/PopupBehaviorSection'
 import AnalyticsSection from './components/AnalyticsSection'
 import GeneralSection from './components/GeneralSection'
@@ -36,9 +35,6 @@ const SettingPage = () => {
               <AppearanceSection />
             </div>
           </div>
-
-          {/* Row 2: Database (Full Width) */}
-          <DatabaseSection />
 
           {/* Row 3: Gemini API (Full Width) */}
           <GeminiApiKeySection />

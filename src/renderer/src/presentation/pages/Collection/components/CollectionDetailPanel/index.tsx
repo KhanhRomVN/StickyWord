@@ -14,9 +14,21 @@ const CollectionDetailPanel = ({ selectedItem, onItemDeleted }: CollectionDetail
   const handleDeleteWord = async (itemId: string) => {
     try {
       // Gọi API xóa từ database
-      if (window.api?.vocabulary?.delete) {
+      const { getCloudDatabase } = await import('../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (!db) {
+        throw new Error('Database not connected')
+      }
+
+      const deletedCount = await db.deleteItem(itemId)
+
+      if (deletedCount > 0) {
+        console.log('[CollectionDetailPanel] Item deleted successfully:', itemId)
         // Notify parent component
         onItemDeleted?.(itemId)
+      } else {
+        throw new Error('Item not found or already deleted')
       }
     } catch (error) {
       console.error('[CollectionDetailPanel] Error deleting item:', error)

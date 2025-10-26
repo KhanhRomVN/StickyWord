@@ -3,26 +3,16 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Export API type for TypeScript
 export interface API {
-  sqlite: {
-    createDatabase: (path: string) => Promise<any>
-    openDatabase: (path: string) => Promise<any>
-    closeDatabase: () => Promise<any>
-    runQuery: (query: string, params?: any[]) => Promise<any>
-    getAllRows: (query: string, params?: any[]) => Promise<any>
-    getOneRow: (query: string, params?: any[]) => Promise<any>
-    status: () => Promise<{ isConnected: boolean; message: string }>
-  }
-  vocabulary: {
-    save: (item: any) => Promise<any>
-    getAll: (filterType?: string) => Promise<any[]>
-    delete: (id: string) => Promise<any>
-    update: (item: any) => Promise<any>
-  }
-  fileSystem: {
-    showSaveDialog: (options: any) => Promise<any>
-    showOpenDialog: (options: any) => Promise<any>
-    exists: (path: string) => Promise<boolean>
-    createDirectory: (path: string, options?: { recursive?: boolean }) => Promise<void>
+  cloudDatabase: {
+    testConnection: (connectionString: string) => Promise<{ success: boolean; error?: string }>
+    connect: (connectionString: string) => Promise<{ success: boolean; error?: string }>
+    disconnect: () => Promise<{ success: boolean; error?: string }>
+    initializeSchema: () => Promise<{ success: boolean; error?: string }>
+    query: (
+      query: string,
+      params?: any[]
+    ) => Promise<{ success: boolean; rows: any[]; rowCount: number; error?: string }>
+    status: () => Promise<{ isConnected: boolean }>
   }
   storage: {
     set: (key: string, value: any) => Promise<void>
@@ -33,27 +23,14 @@ export interface API {
 
 // Custom APIs for renderer
 const api: API = {
-  sqlite: {
-    createDatabase: (path: string) => ipcRenderer.invoke('sqlite:create', path),
-    openDatabase: (path: string) => ipcRenderer.invoke('sqlite:open', path),
-    closeDatabase: () => ipcRenderer.invoke('sqlite:close'),
-    runQuery: (query: string, params?: any[]) => ipcRenderer.invoke('sqlite:run', query, params),
-    getAllRows: (query: string, params?: any[]) => ipcRenderer.invoke('sqlite:all', query, params),
-    getOneRow: (query: string, params?: any[]) => ipcRenderer.invoke('sqlite:get', query, params),
-    status: () => ipcRenderer.invoke('sqlite:status')
-  },
-  vocabulary: {
-    save: (item: any) => ipcRenderer.invoke('vocabulary:save', item),
-    getAll: (filterType?: string) => ipcRenderer.invoke('vocabulary:getAll', filterType),
-    delete: (id: string) => ipcRenderer.invoke('vocabulary:delete', id),
-    update: (item: any) => ipcRenderer.invoke('vocabulary:update', item)
-  },
-  fileSystem: {
-    showSaveDialog: (options: any) => ipcRenderer.invoke('dialog:save', options),
-    showOpenDialog: (options: any) => ipcRenderer.invoke('dialog:open', options),
-    exists: (path: string) => ipcRenderer.invoke('fs:exists', path),
-    createDirectory: (path: string, options?: { recursive?: boolean }) =>
-      ipcRenderer.invoke('fs:createDirectory', path, options)
+  cloudDatabase: {
+    testConnection: (connectionString: string) =>
+      ipcRenderer.invoke('cloud-db:test-connection', connectionString),
+    connect: (connectionString: string) => ipcRenderer.invoke('cloud-db:connect', connectionString),
+    disconnect: () => ipcRenderer.invoke('cloud-db:disconnect'),
+    initializeSchema: () => ipcRenderer.invoke('cloud-db:initialize-schema'),
+    query: (query: string, params?: any[]) => ipcRenderer.invoke('cloud-db:query', query, params),
+    status: () => ipcRenderer.invoke('cloud-db:status')
   },
   storage: {
     set: (key: string, value: any) => ipcRenderer.invoke('storage:set', key, value),

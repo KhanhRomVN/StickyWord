@@ -293,13 +293,12 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
     }
   }, [formData.content, hasApiKeys, apiKeys])
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!formData.content.trim()) {
       setAiError('Vui lòng nhập từ vựng')
       return
     }
 
-    // Chuyển definitions từ form vào metadata để lưu trữ
     const metadataWithDefinitions = {
       ...formData.metadata,
       definitions: formData.definitions
@@ -321,9 +320,32 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
       updated_at: new Date().toISOString()
     }
 
-    onCreateSuccess?.([newItem])
-    handleReset()
-    onClose()
+    try {
+      // ✅ Kiểm tra trạng thái kết nối trước
+      if (!window.api) {
+        throw new Error('Electron API không khả dụng')
+      }
+
+      const status = await window.api.cloudDatabase.status()
+      if (!status.isConnected) {
+        throw new Error('Database chưa được kết nối. Vui lòng kết nối trong Settings.')
+      }
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (!db) {
+        throw new Error('Không thể lấy database instance. Vui lòng thử kết nối lại trong Settings.')
+      }
+
+      await db.saveVocabularyItem(newItem)
+      onCreateSuccess?.([newItem])
+      handleReset()
+      onClose()
+    } catch (error) {
+      console.error('[CreatePhraseContent] Error saving:', error)
+      setAiError(error instanceof Error ? error.message : 'Lỗi khi lưu')
+    }
   }
 
   const handleReset = () => {
@@ -358,8 +380,8 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
       onClose={handleCancel}
       title="Add new word"
       size="2xl"
-      actionText="Tạo"
-      cancelText="Hủy"
+      actionText="Create Word"
+      cancelText="Cancel"
       onAction={handleCreate}
       actionLoading={isLoadingAI}
       actionDisabled={isLoadingAI || !formData.content.trim()}
@@ -441,6 +463,7 @@ const CreateWordContent = ({ isOpen, onClose, onCreateSuccess }: CreateWordConte
                   placeholder="Enter tag name..."
                   allowDuplicates={false}
                   className="mt-2"
+                  size="sm"
                 />
               </div>
 

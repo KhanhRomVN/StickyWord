@@ -4,6 +4,7 @@ import DashboardPage from '../pages/Dashboard'
 import CollectionPage from '../pages/Collection'
 import NotFoundPage from '../pages/Other/NotFoundPage'
 import SettingPage from '../pages/Setting'
+import QuestionPage from '../pages/Question'
 
 export const routes: RouteObject[] = [
   {
@@ -49,6 +50,11 @@ export const routes: RouteObject[] = [
             <h1 className="text-2xl font-bold">Most Reviewed</h1>
           </div>
         )
+      },
+      // Question Routes
+      {
+        path: 'questions',
+        element: <QuestionPage />
       },
       // Settings Routes
       {

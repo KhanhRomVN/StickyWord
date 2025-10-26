@@ -1,113 +1,19 @@
 import * as dotenv from 'dotenv'
 dotenv.config()
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import * as fs from 'fs'
-import * as sqlite3 from 'sqlite3'
-import { Database } from 'sqlite3'
 import * as path from 'path'
+import { Pool } from 'pg'
 
 let mainWindow: BrowserWindow | null = null
-let db: Database | null = null
+let cloudDbPool: Pool | null = null
 
 // Storage file path
 const getStorageFilePath = () => {
   const userDataPath = app.getPath('userData')
   return path.join(userDataPath, 'email-manager-config.json')
-}
-
-// Initialize database schema
-const initializeDatabaseSchema = async (database: Database): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    database.serialize(() => {
-      // Create vocabulary_item table
-      database.run(
-        `CREATE TABLE IF NOT EXISTS vocabulary_item (
-          id TEXT PRIMARY KEY,
-          item_type TEXT NOT NULL,
-          content TEXT NOT NULL,
-          pronunciation TEXT,
-          difficulty_level INTEGER,
-          frequency_rank INTEGER,
-          category TEXT,
-          tags TEXT,
-          metadata TEXT,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        )`,
-        (err) => {
-          if (err) {
-            console.error('Error creating vocabulary_item table:', err)
-            reject(err)
-          }
-        }
-      )
-
-      // Create definitions table
-      database.run(
-        `CREATE TABLE IF NOT EXISTS definition (
-          id TEXT PRIMARY KEY,
-          vocabulary_item_id TEXT NOT NULL,
-          meaning TEXT NOT NULL,
-          translation TEXT,
-          word_type TEXT,
-          phrase_type TEXT,
-          created_at TEXT NOT NULL,
-          FOREIGN KEY (vocabulary_item_id) REFERENCES vocabulary_item(id)
-        )`,
-        (err) => {
-          if (err) {
-            console.error('Error creating definition table:', err)
-            reject(err)
-          }
-        }
-      )
-
-      // Create examples table
-      database.run(
-        `CREATE TABLE IF NOT EXISTS example (
-          id TEXT PRIMARY KEY,
-          definition_id TEXT NOT NULL,
-          sentence TEXT NOT NULL,
-          translation TEXT,
-          created_at TEXT NOT NULL,
-          FOREIGN KEY (definition_id) REFERENCES definition(id)
-        )`,
-        (err) => {
-          if (err) {
-            console.error('Error creating example table:', err)
-            reject(err)
-          } else {
-            resolve()
-          }
-        }
-      )
-
-      database.run(
-        `CREATE TABLE IF NOT EXISTS grammar_item (
-          id TEXT PRIMARY KEY,
-          item_type TEXT NOT NULL,
-          title TEXT NOT NULL,
-          difficulty_level INTEGER,
-          frequency_rank INTEGER,
-          category TEXT,
-          tags TEXT,
-          metadata TEXT,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        )`,
-        (err) => {
-          if (err) {
-            console.error('Error creating grammar_item table:', err)
-            reject(err)
-          } else {
-            resolve()
-          }
-        }
-      )
-    })
-  })
 }
 
 function createWindow(): void {
@@ -235,460 +141,305 @@ function setupStorageHandlers() {
   })
 }
 
-// Setup IPC handlers for database operations
-function setupDatabaseHandlers() {
-  // Check database connection status
-  ipcMain.handle('sqlite:status', async () => {
+// Helper function to initialize schema
+async function initializeCloudDatabaseSchema() {
+  try {
+    if (!cloudDbPool) throw new Error('Cloud database not connected')
+
+    const queries = [
+      // === VOCABULARY TABLES ===
+      `CREATE TABLE IF NOT EXISTS vocabulary_item (
+        id TEXT PRIMARY KEY,
+        item_type TEXT NOT NULL CHECK (item_type IN ('word', 'phrase')),
+        content TEXT NOT NULL,
+        pronunciation TEXT,
+        difficulty_level INTEGER CHECK (difficulty_level BETWEEN 1 AND 10),
+        frequency_rank INTEGER CHECK (frequency_rank BETWEEN 1 AND 10),
+        category TEXT,
+        tags JSONB DEFAULT '[]'::jsonb,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS definition (
+        id TEXT PRIMARY KEY,
+        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
+        meaning TEXT NOT NULL,
+        translation TEXT,
+        word_type TEXT CHECK (word_type IN ('noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition', 'conjunction', 'interjection', 'determiner', 'exclamation')),
+        phrase_type TEXT CHECK (phrase_type IN ('idiom', 'phrasal_verb', 'collocation', 'slang', 'expression')),
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS example (
+        id TEXT PRIMARY KEY,
+        definition_id TEXT NOT NULL REFERENCES definition(id) ON DELETE CASCADE,
+        sentence TEXT NOT NULL,
+        translation TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS vocabulary_relation (
+        id TEXT PRIMARY KEY,
+        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
+        related_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
+        relation_type TEXT NOT NULL CHECK (relation_type IN ('synonym', 'antonym', 'collocation', 'related')),
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS vocabulary_analytics (
+        id TEXT PRIMARY KEY,
+        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
+        mastery_score INTEGER NOT NULL DEFAULT 0 CHECK (mastery_score BETWEEN 0 AND 100),
+        last_reviewed_at TIMESTAMP,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS vocabulary_question_history (
+        id TEXT PRIMARY KEY,
+        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
+        question_id TEXT NOT NULL
+      )`,
+
+      // === GRAMMAR TABLES ===
+      `CREATE TABLE IF NOT EXISTS grammar_item (
+        id TEXT PRIMARY KEY,
+        item_type TEXT NOT NULL CHECK (item_type IN ('tense', 'structure', 'rule', 'pattern')),
+        title TEXT NOT NULL,
+        difficulty_level INTEGER CHECK (difficulty_level BETWEEN 1 AND 10),
+        frequency_rank INTEGER CHECK (frequency_rank BETWEEN 1 AND 10),
+        category TEXT,
+        tags JSONB DEFAULT '[]'::jsonb,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS grammar_rule (
+        id TEXT PRIMARY KEY,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        rule_description TEXT NOT NULL,
+        translation TEXT,
+        formula TEXT,
+        usage_context TEXT,
+        notes TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS grammar_example (
+        id TEXT PRIMARY KEY,
+        grammar_rule_id TEXT NOT NULL REFERENCES grammar_rule(id) ON DELETE CASCADE,
+        sentence TEXT NOT NULL,
+        translation TEXT,
+        is_correct BOOLEAN NOT NULL DEFAULT true,
+        explanation TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS grammar_common_mistake (
+        id TEXT PRIMARY KEY,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        incorrect_example TEXT NOT NULL,
+        correct_example TEXT NOT NULL,
+        explanation TEXT NOT NULL,
+        translation TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS grammar_relation (
+        id TEXT PRIMARY KEY,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        related_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        relation_type TEXT NOT NULL CHECK (relation_type IN ('prerequisite', 'related', 'contrast', 'progression')),
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS grammar_analytics (
+        id TEXT PRIMARY KEY,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        mastery_score INTEGER NOT NULL DEFAULT 0 CHECK (mastery_score BETWEEN 0 AND 100),
+        last_reviewed_at TIMESTAMP,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS grammar_question_history (
+        id TEXT PRIMARY KEY,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        question_id TEXT NOT NULL
+      )`,
+
+      // === INDEXES ===
+      `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_item(item_type)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_created ON vocabulary_item(created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_definition_vocab ON definition(vocabulary_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_example_def ON example(definition_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_relation ON vocabulary_relation(vocabulary_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_analytics ON vocabulary_analytics(vocabulary_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_item(item_type)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_created ON grammar_item(created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_rule ON grammar_rule(grammar_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_example ON grammar_example(grammar_rule_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_mistake ON grammar_common_mistake(grammar_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_relation ON grammar_relation(grammar_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_analytics ON grammar_analytics(grammar_item_id)`
+    ]
+
+    for (const query of queries) {
+      await cloudDbPool.query(query)
+    }
+
+    console.log('[initializeCloudDatabaseSchema] Schema created successfully')
+    return { success: true }
+  } catch (error) {
+    console.error('[initializeCloudDatabaseSchema] Error:', error)
     return {
-      isConnected: db !== null,
-      message: db ? 'Database connected' : 'Database not connected'
+      success: false,
+      error: error instanceof Error ? error.message : 'Schema initialization failed'
     }
-  })
-  // Dialog handlers
-  ipcMain.handle('dialog:save', async (_event, options) => {
-    if (!mainWindow) throw new Error('Main window not available')
+  }
+}
 
+// Setup IPC handlers for cloud database operations
+function setupCloudDatabaseHandlers() {
+  // Test cloud database connection
+  ipcMain.handle('cloud-db:test-connection', async (_event, connectionString: string) => {
+    let testPool: Pool | null = null
     try {
-      const result = await dialog.showSaveDialog(mainWindow, {
-        title: options.title || 'Save File',
-        defaultPath: options.defaultPath || 'database.db',
-        filters: options.filters || [
-          { name: 'Database Files', extensions: ['db', 'sqlite'] },
-          { name: 'All Files', extensions: ['*'] }
-        ]
-      })
-
+      testPool = new Pool({ connectionString })
+      await testPool.query('SELECT 1')
+      return { success: true }
+    } catch (error) {
+      console.error('[cloud-db:test-connection] Error:', error)
       return {
-        canceled: result.canceled,
-        filePath: result.filePath
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
-    } catch (error) {
-      console.error('Error in dialog:save:', error)
-      throw error
+    } finally {
+      if (testPool) {
+        await testPool.end()
+      }
     }
   })
 
-  ipcMain.handle('dialog:open', async (_event, options) => {
-    if (!mainWindow) throw new Error('Main window not available')
-
+  // Connect to cloud database
+  ipcMain.handle('cloud-db:connect', async (_event, connectionString: string) => {
     try {
-      const result = await dialog.showOpenDialog(mainWindow, {
-        title: options.title || 'Open File',
-        filters: options.filters || [
-          { name: 'Database Files', extensions: ['db', 'sqlite'] },
-          { name: 'All Files', extensions: ['*'] }
-        ],
-        properties: options.properties || ['openFile']
-      })
+      // Close existing connection if any
+      if (cloudDbPool) {
+        await cloudDbPool.end()
+      }
 
+      cloudDbPool = new Pool({ connectionString })
+
+      // Test connection
+      await cloudDbPool.query('SELECT 1')
+
+      // Auto-initialize schema after successful connection
+      console.log('[cloud-db:connect] Connection successful, initializing schema...')
+      const initResult = await initializeCloudDatabaseSchema()
+
+      if (!initResult.success) {
+        console.warn('[cloud-db:connect] Schema initialization warning:', initResult.error)
+        // Don't fail connection if schema already exists
+      } else {
+        console.log('[cloud-db:connect] Schema initialized successfully')
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error('[cloud-db:connect] Error:', error)
+      cloudDbPool = null
       return {
-        canceled: result.canceled,
-        filePaths: result.filePaths
-      }
-    } catch (error) {
-      console.error('Error in dialog:open:', error)
-      throw error
-    }
-  })
-
-  // File system handlers
-  ipcMain.handle('fs:exists', async (_event, path: string) => {
-    try {
-      return fs.existsSync(path)
-    } catch (error) {
-      console.error('Error checking file existence:', error)
-      return false
-    }
-  })
-
-  ipcMain.handle(
-    'fs:createDirectory',
-    async (_event, dirPath: string, options?: { recursive?: boolean }) => {
-      try {
-        if (!fs.existsSync(dirPath)) {
-          fs.mkdirSync(dirPath, { recursive: options?.recursive ?? true })
-        }
-      } catch (error) {
-        console.error('Error creating directory:', error)
-        throw error
+        success: false,
+        error: error instanceof Error ? error.message : 'Connection failed'
       }
     }
-  )
+  })
 
-  // SQLite handlers
-  ipcMain.handle('sqlite:create', async (_event, path: string) => {
+  // Disconnect from cloud database
+  ipcMain.handle('cloud-db:disconnect', async () => {
     try {
-      // Close existing database if open
-      if (db) {
-        await new Promise<void>((resolve, reject) => {
-          db!.close((err) => {
-            if (err) reject(err)
-            else resolve()
-          })
-        })
-        db = null
+      if (cloudDbPool) {
+        await cloudDbPool.end()
+        cloudDbPool = null
+      }
+      return { success: true }
+    } catch (error) {
+      console.error('[cloud-db:disconnect] Error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Disconnect failed'
+      }
+    }
+  })
+
+  // Initialize cloud database schema
+  ipcMain.handle('cloud-db:initialize-schema', async () => {
+    try {
+      if (!cloudDbPool) throw new Error('Cloud database not connected')
+
+      const queries = [
+        `CREATE TABLE IF NOT EXISTS vocabulary_item (
+          id TEXT PRIMARY KEY,
+          item_type TEXT NOT NULL,
+          content TEXT NOT NULL,
+          pronunciation TEXT,
+          difficulty_level INTEGER,
+          frequency_rank INTEGER,
+          category TEXT,
+          tags JSONB,
+          metadata JSONB,
+          created_at TIMESTAMP NOT NULL,
+          updated_at TIMESTAMP NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS grammar_item (
+          id TEXT PRIMARY KEY,
+          item_type TEXT NOT NULL,
+          title TEXT NOT NULL,
+          difficulty_level INTEGER,
+          frequency_rank INTEGER,
+          category TEXT,
+          tags JSONB,
+          metadata JSONB,
+          created_at TIMESTAMP NOT NULL,
+          updated_at TIMESTAMP NOT NULL
+        )`,
+        `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_item(item_type)`,
+        `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_item(item_type)`
+      ]
+
+      for (const query of queries) {
+        await cloudDbPool.query(query)
       }
 
-      // Create new database with callback to ensure it's ready
-      return new Promise<void>((resolve, reject) => {
-        db = new sqlite3.Database(path, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
-          if (err) {
-            db = null
-            reject(err)
-          } else {
-            // Database is successfully created and ready
-            resolve()
-          }
-        })
-      })
+      return { success: true }
     } catch (error) {
-      console.error('Error creating database:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('sqlite:open', async (_event, path: string) => {
-    try {
-      // Close existing database if open
-      if (db) {
-        await new Promise<void>((resolve, reject) => {
-          db!.close((err) => {
-            if (err) reject(err)
-            else resolve()
-          })
-        })
-        db = null
+      console.error('[cloud-db:initialize-schema] Error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Schema initialization failed'
       }
-
-      // Open existing database with callback to ensure it's ready
-      return new Promise<void>((resolve, reject) => {
-        db = new sqlite3.Database(path, sqlite3.OPEN_READWRITE, (err) => {
-          if (err) {
-            db = null
-            reject(err)
-          } else {
-            // Database is successfully opened and ready
-            resolve()
-          }
-        })
-      })
-    } catch (error) {
-      console.error('Error opening database:', error)
-      throw error
     }
   })
 
-  ipcMain.handle('sqlite:close', async () => {
+  // Execute cloud database query
+  ipcMain.handle('cloud-db:query', async (_event, query: string, params: any[] = []) => {
     try {
-      if (db) {
-        await new Promise<void>((resolve, reject) => {
-          db!.close((err) => {
-            if (err) reject(err)
-            else resolve()
-          })
-        })
-        db = null
+      if (!cloudDbPool) throw new Error('Cloud database not connected')
+
+      const result = await cloudDbPool.query(query, params)
+      return {
+        success: true,
+        rows: result.rows,
+        rowCount: result.rowCount
       }
     } catch (error) {
-      console.error('Error closing database:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('sqlite:run', async (_event, query: string, params: any[] = []) => {
-    try {
-      if (!db) throw new Error('Database not connected')
-
-      return new Promise((resolve, reject) => {
-        db!.run(query, params, function (err) {
-          if (err) {
-            reject(err)
-          } else {
-            resolve({
-              lastID: this.lastID,
-              changes: this.changes
-            })
-          }
-        })
-      })
-    } catch (error) {
-      console.error('Error running query:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('sqlite:all', async (_event, query: string, params: any[] = []) => {
-    try {
-      if (!db) throw new Error('Database not connected')
-
-      return new Promise((resolve, reject) => {
-        db!.all(query, params, (err, rows) => {
-          if (err) {
-            reject(err)
-          } else {
-            resolve(rows)
-          }
-        })
-      })
-    } catch (error) {
-      console.error('Error running select query:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('sqlite:get', async (_event, query: string, params: any[] = []) => {
-    try {
-      if (!db) throw new Error('Database not connected')
-
-      return new Promise((resolve, reject) => {
-        db!.get(query, params, (err, row) => {
-          if (err) {
-            reject(err)
-          } else {
-            resolve(row)
-          }
-        })
-      })
-    } catch (error) {
-      console.error('Error running get query:', error)
-      throw error
-    }
-  })
-
-  // Vocabulary CRUD operations
-  ipcMain.handle('vocabulary:save', async (_event, item: any) => {
-    try {
-      if (!db) throw new Error('Database not connected')
-      const isGrammar = 'title' in item && !('content' in item)
-      let query: string
-      let params: any[]
-
-      if (isGrammar) {
-        query = `
-        INSERT INTO grammar_item (
-          id, item_type, title,
-          difficulty_level, frequency_rank, category, tags, metadata,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `
-
-        params = [
-          item.id,
-          item.item_type || 'tense',
-          item.title,
-          item.difficulty_level || null,
-          item.frequency_rank || null,
-          item.category || null,
-          item.tags ? JSON.stringify(item.tags) : null,
-          item.metadata ? JSON.stringify(item.metadata) : null,
-          item.created_at,
-          item.updated_at
-        ]
-      } else {
-        query = `
-        INSERT INTO vocabulary_item (
-          id, item_type, content, pronunciation,
-          difficulty_level, frequency_rank, category, tags, metadata,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `
-
-        params = [
-          item.id,
-          item.item_type,
-          item.content,
-          item.pronunciation || null,
-          item.difficulty_level || null,
-          item.frequency_rank || null,
-          item.category || null,
-          item.tags ? JSON.stringify(item.tags) : null,
-          item.metadata ? JSON.stringify(item.metadata) : null,
-          item.created_at,
-          item.updated_at
-        ]
+      console.error('[cloud-db:query] Error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Query failed',
+        rows: [],
+        rowCount: 0
       }
-
-      return new Promise((resolve, reject) => {
-        db!.run(query, params, function (err) {
-          if (err) {
-            console.error('[vocabulary:save] ❌ SQL Error:', err)
-            reject(err)
-          } else {
-            resolve({ id: item.id, changes: this.changes })
-          }
-        })
-      })
-    } catch (error) {
-      console.error('[vocabulary:save] ❌ Error saving item:', error)
-      throw error
     }
   })
 
-  ipcMain.handle('vocabulary:getAll', async (_event, filterType?: string) => {
-    try {
-      if (!db) throw new Error('Database not connected')
-
-      let vocabularyItems: any[] = []
-      let grammarItems: any[] = []
-
-      // Query vocabulary_item (word/phrase)
-      if (!filterType || filterType === 'all' || filterType === 'word' || filterType === 'phrase') {
-        let vocabQuery = 'SELECT * FROM vocabulary_item'
-        const vocabParams: any[] = []
-
-        if (filterType && filterType !== 'all') {
-          vocabQuery += ' WHERE item_type = ?'
-          vocabParams.push(filterType)
-        }
-
-        vocabQuery += ' ORDER BY created_at DESC'
-
-        vocabularyItems = await new Promise((resolve, reject) => {
-          db!.all(vocabQuery, vocabParams, (err, rows: any[]) => {
-            if (err) {
-              console.error('[vocabulary:getAll] ❌ Vocabulary query error:', err)
-              reject(err)
-            } else {
-              const items = rows.map((row) => ({
-                ...row,
-                tags: row.tags ? JSON.parse(row.tags) : [],
-                metadata: row.metadata ? JSON.parse(row.metadata) : {}
-              }))
-              resolve(items)
-            }
-          })
-        })
-      }
-
-      // Query grammar_item (grammar points with any item_type)
-      if (!filterType || filterType === 'all' || filterType === 'grammar') {
-        const grammarQuery = 'SELECT * FROM grammar_item ORDER BY created_at DESC'
-        grammarItems = await new Promise((resolve, reject) => {
-          db!.all(grammarQuery, [], (err, rows: any[]) => {
-            if (err) {
-              console.error('[vocabulary:getAll] ❌ Grammar query error:', err)
-              reject(err)
-            } else {
-              const items = rows.map((row) => ({
-                ...row,
-                tags: row.tags ? JSON.parse(row.tags) : [],
-                metadata: row.metadata ? JSON.parse(row.metadata) : {}
-              }))
-              resolve(items)
-            }
-          })
-        })
-      }
-
-      // Merge and sort by created_at
-      const allItems = [...vocabularyItems, ...grammarItems].sort((a, b) => {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      })
-
-      return allItems
-    } catch (error) {
-      console.error('[vocabulary:getAll] ❌ Error getting items:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('vocabulary:delete', async (_event, id: string) => {
-    try {
-      if (!db) throw new Error('Database not connected')
-
-      // Try deleting from vocabulary_item first
-      let changes = await new Promise<number>((resolve, reject) => {
-        db!.run('DELETE FROM vocabulary_item WHERE id = ?', [id], function (err) {
-          if (err) reject(err)
-          else resolve(this.changes)
-        })
-      })
-
-      // If not found in vocabulary_item, try grammar_item
-      if (changes === 0) {
-        changes = await new Promise<number>((resolve, reject) => {
-          db!.run('DELETE FROM grammar_item WHERE id = ?', [id], function (err) {
-            if (err) reject(err)
-            else resolve(this.changes)
-          })
-        })
-      }
-
-      return { changes }
-    } catch (error) {
-      console.error('Error deleting item:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('vocabulary:update', async (_event, item: any) => {
-    try {
-      if (!db) throw new Error('Database not connected')
-
-      const isGrammar = 'title' in item && !('content' in item)
-
-      let query: string
-      let params: any[]
-
-      if (isGrammar) {
-        query = `
-        UPDATE grammar_item SET
-          title = ?,
-          difficulty_level = ?,
-          frequency_rank = ?,
-          category = ?,
-          tags = ?,
-          metadata = ?,
-          updated_at = ?
-        WHERE id = ?
-      `
-
-        params = [
-          item.title,
-          item.difficulty_level || null,
-          item.frequency_rank || null,
-          item.category || null,
-          item.tags ? JSON.stringify(item.tags) : null,
-          item.metadata ? JSON.stringify(item.metadata) : null,
-          new Date().toISOString(),
-          item.id
-        ]
-      } else {
-        query = `
-        UPDATE vocabulary_item SET
-          content = ?,
-          pronunciation = ?,
-          difficulty_level = ?,
-          frequency_rank = ?,
-          category = ?,
-          tags = ?,
-          metadata = ?,
-          updated_at = ?
-        WHERE id = ?
-      `
-
-        params = [
-          item.content,
-          item.pronunciation || null,
-          item.difficulty_level || null,
-          item.frequency_rank || null,
-          item.category || null,
-          item.tags ? JSON.stringify(item.tags) : null,
-          item.metadata ? JSON.stringify(item.metadata) : null,
-          new Date().toISOString(),
-          item.id
-        ]
-      }
-
-      return new Promise((resolve, reject) => {
-        db!.run(query, params, function (err) {
-          if (err) reject(err)
-          else resolve({ changes: this.changes })
-        })
-      })
-    } catch (error) {
-      console.error('Error updating item:', error)
-      throw error
+  // Get connection status
+  ipcMain.handle('cloud-db:status', async () => {
+    return {
+      isConnected: cloudDbPool !== null
     }
   })
 }
@@ -701,43 +452,7 @@ app.whenReady().then(async () => {
 
   // Setup IPC handlers
   setupStorageHandlers()
-  setupDatabaseHandlers()
-
-  // Initialize default database
-  try {
-    const userDataPath = app.getPath('userData')
-    const dbPath = path.join(userDataPath, 'stickyword.db')
-
-    // Ensure userData directory exists
-    if (!fs.existsSync(userDataPath)) {
-      fs.mkdirSync(userDataPath, { recursive: true })
-    }
-
-    // Create or open database
-    await new Promise<void>((resolve, reject) => {
-      db = new sqlite3.Database(
-        dbPath,
-        sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,
-        async (err) => {
-          if (err) {
-            console.error('Error initializing database:', err)
-            reject(err)
-          } else {
-            try {
-              // Initialize schema
-              await initializeDatabaseSchema(db!)
-              resolve()
-            } catch (schemaError) {
-              console.error('[Main] Error initializing schema:', schemaError)
-              reject(schemaError)
-            }
-          }
-        }
-      )
-    })
-  } catch (error) {
-    console.error('[Main] Failed to initialize database:', error)
-  }
+  setupCloudDatabaseHandlers()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -768,12 +483,14 @@ app.whenReady().then(async () => {
 })
 
 // Quit when all windows are closed, except on macOS.
-app.on('window-all-closed', () => {
-  // Close database connection when app is closing
-  if (db) {
-    db.close((err) => {
-      if (err) console.error('Error closing database on app quit:', err)
-    })
+app.on('window-all-closed', async () => {
+  // Close cloud database connection when app is closing
+  if (cloudDbPool) {
+    try {
+      await cloudDbPool.end()
+    } catch (err) {
+      console.error('Error closing cloud database on app quit:', err)
+    }
   }
 
   if (process.platform !== 'darwin') {

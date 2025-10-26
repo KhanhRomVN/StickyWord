@@ -11,7 +11,8 @@ import {
   Settings,
   FileText,
   TrendingUp,
-  Tag
+  Tag,
+  HelpCircle
 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
@@ -81,6 +82,12 @@ const menuItems: MenuItem[] = [
         icon: BookOpen
       }
     ]
+  },
+  {
+    icon: HelpCircle,
+    label: 'Question',
+    href: '/questions',
+    description: 'Quản lý câu hỏi'
   },
   {
     icon: Settings,
@@ -248,11 +255,6 @@ export function MainSidebar({ className }: MainSidebarProps) {
             </div>
           )
         })}
-      </div>
-
-      {/* Footer */}
-      <div className="pt-4 border-t border-border mt-4">
-        <p className="text-xs text-text-secondary text-center">© 2025 StickyWord v1.0</p>
       </div>
     </motion.div>
   )

@@ -204,9 +204,14 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         updated_at: new Date().toISOString()
       }
 
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
+      } else {
+        throw new Error('Database not connected')
       }
     } catch (error) {
       console.error('[PhraseContentSection] Error updating field:', error)
@@ -233,8 +238,12 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         difficulty_level: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -255,8 +264,12 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         frequency_rank: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -277,8 +290,12 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         category: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -295,8 +312,12 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         tags: newTags,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {
@@ -313,8 +334,12 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         metadata: newMetadata,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
         setCurrentItem(updatedItem as vocabulary_item)
       }
     } catch (error) {

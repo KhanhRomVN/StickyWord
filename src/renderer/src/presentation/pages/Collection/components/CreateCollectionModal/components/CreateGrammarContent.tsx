@@ -339,7 +339,7 @@ const CreateGrammarContent = ({ isOpen, onClose, onCreateSuccess }: CreateGramma
     }
   }, [formData.title, hasApiKeys, apiKeys])
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!formData.title.trim()) {
       setAiError('Vui lòng nhập tiêu đề điểm ngữ pháp')
       return
@@ -367,13 +367,21 @@ const CreateGrammarContent = ({ isOpen, onClose, onCreateSuccess }: CreateGramma
     }
 
     try {
-      onCreateSuccess?.([newItem])
-    } catch (error) {
-      console.error('[CreateGrammarContent] ❌ Error calling onCreateSuccess:', error)
-    }
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
 
-    handleReset()
-    onClose()
+      if (db) {
+        await db.saveGrammarItem(newItem)
+        onCreateSuccess?.([newItem])
+        handleReset()
+        onClose()
+      } else {
+        setAiError('Không thể kết nối database')
+      }
+    } catch (error) {
+      console.error('[CreateGrammarContent] Error saving:', error)
+      setAiError(error instanceof Error ? error.message : 'Lỗi khi lưu')
+    }
   }
 
   const handleReset = () => {
@@ -422,8 +430,8 @@ const CreateGrammarContent = ({ isOpen, onClose, onCreateSuccess }: CreateGramma
       onClose={handleCancel}
       title="Add new grammar point"
       size="2xl"
-      actionText="Tạo"
-      cancelText="Hủy"
+      actionText="Create Grammar"
+      cancelText="Cancel"
       onAction={handleCreate}
       actionLoading={isLoadingAI}
       actionDisabled={isLoadingAI || !formData.title.trim()}

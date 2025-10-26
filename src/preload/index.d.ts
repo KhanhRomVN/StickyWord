@@ -11,18 +11,6 @@ interface API {
     getOneRow: (query: string, params?: any[]) => Promise<any>
     status: () => Promise<{ isConnected: boolean; message: string }>
   }
-  vocabulary: {
-    save: (item: any) => Promise<any>
-    getAll: (filterType?: string) => Promise<any[]>
-    delete: (id: string) => Promise<any>
-    update: (item: any) => Promise<any>
-  }
-  fileSystem: {
-    showSaveDialog: (options: any) => Promise<any>
-    showOpenDialog: (options: any) => Promise<any>
-    exists: (path: string) => Promise<boolean>
-    createDirectory: (path: string, options?: { recursive?: boolean }) => Promise<void>
-  }
   storage: {
     set: (key: string, value: any) => Promise<void>
     get: (key: string) => Promise<any>
