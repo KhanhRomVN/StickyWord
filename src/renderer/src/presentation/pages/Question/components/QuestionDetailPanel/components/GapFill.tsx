@@ -113,7 +113,7 @@ const GapFill = ({ question, userAnswer, setUserAnswer, isSubmitted, onSubmit }:
       </div>
 
       {/* Word Bank */}
-      {question.allow_word_bank && question.word_bank && question.word_bank.length > 0 && (
+      {question.word_bank && question.word_bank.length > 0 && (
         <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-border-default">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Ngân hàng từ:</p>
           <div className="flex flex-wrap gap-2">

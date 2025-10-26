@@ -6,15 +6,15 @@ export interface base_question {
     | 'sentence_puzzle'
     | 'translate'
     | 'reverse_translation'
-    | 'dictation'
     | 'gap_fill'
     | 'choice_one'
     | 'choice_multi'
     | 'matching'
     | 'true_false'
+  context?: string
   difficulty_level: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
-  estimated_time_seconds: number
-  vocabulary_item_ids: string[]
+  estimated_time_seconds?: number
+  vocabulary_item_ids?: string[]
   grammar_points?: string[]
   created_at: string
   updated_at: string
@@ -55,14 +55,12 @@ export interface grammar_transformation_question extends base_question {
 
 export interface sentence_puzzle_question extends base_question {
   question_type: 'sentence_puzzle'
-  puzzle_type: 'word_order' | 'phrase_order' | 'character_scramble'
   scrambled_items: string[]
   correct_sentence: string
   correct_order?: number[]
-  context?: string
   hint?: string
-  translation?: string
   language_code?: string
+  translation?: string
 }
 
 export interface translate_question extends base_question {
@@ -71,7 +69,6 @@ export interface translate_question extends base_question {
   source_language: string
   correct_translation: string
   alternative_translations?: string[]
-  context?: string
   hint?: string
   key_vocabulary?: string[]
 }
@@ -82,23 +79,8 @@ export interface reverse_translation_question extends base_question {
   target_language: string
   correct_translation: string
   alternative_translations?: string[]
-  context?: string
   hint?: string
   key_grammar_points?: string[]
-}
-
-export interface dictation_question extends base_question {
-  question_type: 'dictation'
-  audio_url: string
-  audio_duration_seconds: number
-  audio_speed: 'slow' | 'normal' | 'fast'
-  speaker_accent?: 'american' | 'british' | 'australian' | 'other'
-  correct_transcription: string
-  can_replay: boolean
-  max_replays?: number
-  hint?: string
-  has_background_noise?: boolean
-  multiple_speakers?: boolean
 }
 
 export interface gap_fill_question extends base_question {
@@ -109,10 +91,8 @@ export interface gap_fill_question extends base_question {
     correct_answer: string
     alternative_answers?: string[]
   }>
-  context?: string
   hint?: string
   word_bank?: string[]
-  allow_word_bank: boolean
 }
 
 export interface choice_one_question extends base_question {
@@ -123,10 +103,8 @@ export interface choice_one_question extends base_question {
     text: string
   }>
   correct_option_id: string
-  context?: string
   hint?: string
   explanation?: string
-  word_focus?: string
 }
 
 export interface choice_multi_question extends base_question {
@@ -139,7 +117,6 @@ export interface choice_multi_question extends base_question {
   correct_option_ids: string[]
   min_selections?: number
   max_selections?: number
-  context?: string
   hint?: string
   explanation?: string
 }
@@ -167,7 +144,6 @@ export interface true_false_question extends base_question {
   question_type: 'true_false'
   statement: string
   correct_answer: boolean
-  context?: string
   hint?: string
   explanation?: string
   grammar_focus: string
@@ -179,7 +155,6 @@ export type Question =
   | sentence_puzzle_question
   | translate_question
   | reverse_translation_question
-  | dictation_question
   | gap_fill_question
   | choice_one_question
   | choice_multi_question

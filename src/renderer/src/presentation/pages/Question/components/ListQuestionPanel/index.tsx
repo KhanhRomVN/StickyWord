@@ -35,8 +35,26 @@ const ListQuestionPanel = ({ onSelectQuestion, selectedQuestion }: ListQuestionP
           return q.source_sentence.toLowerCase().includes(term)
         } else if (q.question_type === 'reverse_translation') {
           return q.english_sentence.toLowerCase().includes(term)
-        } else if (q.question_type === 'dictation') {
-          return q.correct_transcription.toLowerCase().includes(term)
+        } else if (q.question_type === 'gap_fill') {
+          return q.sentence_with_gaps.toLowerCase().includes(term)
+        } else if (q.question_type === 'choice_one') {
+          return (
+            q.question_text.toLowerCase().includes(term) ||
+            q.options.some((opt) => opt.text.toLowerCase().includes(term))
+          )
+        } else if (q.question_type === 'choice_multi') {
+          return (
+            q.question_text.toLowerCase().includes(term) ||
+            q.options.some((opt) => opt.text.toLowerCase().includes(term))
+          )
+        } else if (q.question_type === 'matching') {
+          return (
+            q.instruction.toLowerCase().includes(term) ||
+            q.left_items.some((item) => item.text.toLowerCase().includes(term)) ||
+            q.right_items.some((item) => item.text.toLowerCase().includes(term))
+          )
+        } else if (q.question_type === 'true_false') {
+          return q.statement.toLowerCase().includes(term)
         }
         return false
       })
@@ -129,14 +147,54 @@ const ListQuestionPanel = ({ onSelectQuestion, selectedQuestion }: ListQuestionP
             Dịch ngược
           </button>
           <button
-            onClick={() => setFilterType('dictation')}
+            onClick={() => setFilterType('gap_fill')}
             className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors ${
-              filterType === 'dictation'
+              filterType === 'gap_fill'
                 ? 'bg-primary text-white'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
             }`}
           >
-            Nghe viết
+            Điền từ
+          </button>
+          <button
+            onClick={() => setFilterType('choice_one')}
+            className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors ${
+              filterType === 'choice_one'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            Trắc nghiệm
+          </button>
+          <button
+            onClick={() => setFilterType('choice_multi')}
+            className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors ${
+              filterType === 'choice_multi'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            Chọn nhiều
+          </button>
+          <button
+            onClick={() => setFilterType('matching')}
+            className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors ${
+              filterType === 'matching'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            Nối
+          </button>
+          <button
+            onClick={() => setFilterType('true_false')}
+            className={`px-3 py-1.5 text-xs rounded-lg whitespace-nowrap transition-colors ${
+              filterType === 'true_false'
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            }`}
+          >
+            Đúng/Sai
           </button>
         </div>
       </div>

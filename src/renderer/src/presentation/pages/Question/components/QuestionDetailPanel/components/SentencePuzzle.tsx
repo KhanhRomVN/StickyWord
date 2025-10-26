@@ -170,11 +170,6 @@ const SentencePuzzleView = ({
                 </span>
               </p>
             )}
-            {question.translation && (
-              <p className="text-text-secondary">
-                Dịch nghĩa: <span className="font-medium">{question.translation}</span>
-              </p>
-            )}
           </div>
         </div>
       )}

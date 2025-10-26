@@ -7,7 +7,6 @@ import GrammarTransformation from './components/GrammarTransformation'
 import SentencePuzzle from './components/SentencePuzzle'
 import Translate from './components/Translate'
 import ReverseTranslation from './components/ReverseTranslation'
-import Dictation from './components/Dictation'
 import GapFill from './components/GapFill'
 import ChoiceOne from './components/ChoiceOne'
 import ChoiceMulti from './components/ChoiceMulti'
@@ -95,8 +94,7 @@ const QuestionDetailPanel = ({
               {mode === 'view' ? 'Làm bài tập' : 'Chỉnh sửa câu hỏi'}
             </h2>
             <p className="text-sm text-text-secondary mt-1">
-              Độ khó: {currentQuestion.difficulty_level}/10 • Thời gian:{' '}
-              {currentQuestion.estimated_time_seconds}s
+              Độ khó: {currentQuestion.difficulty_level}/10
             </p>
           </div>
 
@@ -166,15 +164,6 @@ const QuestionDetailPanel = ({
         )}
         {currentQuestion.question_type === 'reverse_translation' && (
           <ReverseTranslation
-            question={currentQuestion}
-            userAnswer={userAnswer}
-            setUserAnswer={setUserAnswer}
-            isSubmitted={isSubmitted}
-            onSubmit={handleSubmitAnswer}
-          />
-        )}
-        {currentQuestion.question_type === 'dictation' && (
-          <Dictation
             question={currentQuestion}
             userAnswer={userAnswer}
             setUserAnswer={setUserAnswer}
