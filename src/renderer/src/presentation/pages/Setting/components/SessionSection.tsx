@@ -6,7 +6,7 @@ import CustomInput from '../../../../components/common/CustomInput'
 import CustomButton from '../../../../components/common/CustomButton'
 import { AutoSessionConfig } from '../../Dashboard/services/AutoSessionService'
 import SessionPopup from '../../Dashboard/components/SessionPopup'
-import { Session } from '../../Dashboard/types'
+import { Session } from '../../SessionPopupPage/types'
 
 interface ExtendedSessionConfig extends AutoSessionConfig {
   popup_behavior: 'surprise' | 'notification' | 'silent'
@@ -36,11 +36,15 @@ const SessionSection = () => {
     loadConfig()
   }, [])
 
-  const loadConfig = () => {
+  const loadConfig = async () => {
     try {
-      const savedConfig = localStorage.getItem('auto_session_config')
+      if (!window.api) {
+        console.error('[SessionSection] window.api is not available')
+        return
+      }
+      const savedConfig = await window.api.storage.get('auto_session_config')
       if (savedConfig) {
-        setConfig(JSON.parse(savedConfig))
+        setConfig(savedConfig)
       }
     } catch (error) {
       console.error('[SessionSection] Error loading config:', error)
@@ -52,8 +56,14 @@ const SessionSection = () => {
       setIsSaving(true)
       setSaveStatus('idle')
 
+      if (!window.api) {
+        console.error('[SessionSection] window.api is not available')
+        setSaveStatus('error')
+        return
+      }
+
       console.log('[SessionSection] 💾 Saving config:', config)
-      localStorage.setItem('auto_session_config', JSON.stringify(config))
+      await window.api.storage.set('auto_session_config', config)
 
       setSaveStatus('success')
       console.log('[SessionSection] ✅ Config saved, reloading app...')
@@ -142,6 +152,11 @@ const SessionSection = () => {
       // Hiển thị popup dựa trên config
       if (config.popup_behavior === 'surprise') {
         console.log('[SessionSection] 🎉 Opening surprise popup window...')
+        if (!window.api) {
+          console.error('[SessionSection] window.api is not available')
+          alert('❌ window.api không khả dụng')
+          return
+        }
         const result = await window.api.popup.showSession(testSession)
         if (result.success) {
           console.log('[SessionSection] ✅ Popup window opened successfully')

@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react'
 import { Session } from '../SessionPopupPage/types'
-import SessionPopup from './components/SessionPopup'
 import SessionList from './components/SessionList'
-import { useSessionNotification } from '../../../hooks/useSessionNotification'
 
 const DashboardPage = () => {
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeSession, setActiveSession] = useState<Session | null>(null)
-  const { newSession, showPopup, closePopup } = useSessionNotification()
 
   // Load sessions from storage
   useEffect(() => {
     loadSessions()
+
+    // Listen for session updates from popup window
+    const handleSessionUpdate = () => {
+      console.log('[DashboardPage] 🔄 Session updated, reloading...')
+      loadSessions()
+    }
+
+    window.addEventListener('session-updated', handleSessionUpdate)
+
+    return () => {
+      window.removeEventListener('session-updated', handleSessionUpdate)
+    }
   }, [])
 
   const loadSessions = () => {
@@ -27,8 +36,9 @@ const DashboardPage = () => {
   }
 
   const handleStartSession = (session: Session) => {
+    console.log('[DashboardPage] Starting session:', session.id)
     setActiveSession(session)
-    setShowPopup(false)
+    // TODO: Navigate to question page
   }
 
   return (
@@ -47,19 +57,6 @@ const DashboardPage = () => {
           onReload={loadSessions}
         />
       </div>
-
-      {/* Auto Session Popup */}
-      {showPopup && newSession && (
-        <SessionPopup
-          session={newSession}
-          onStart={() => {
-            handleStartSession(newSession)
-            closePopup()
-            loadSessions() // Reload để update UI
-          }}
-          onClose={closePopup}
-        />
-      )}
     </div>
   )
 }

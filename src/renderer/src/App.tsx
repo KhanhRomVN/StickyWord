@@ -63,9 +63,20 @@ function App() {
 
     loadAndStartService()
 
+    // ✅ Listen cho message từ popup window
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'session-updated') {
+        console.log('[App] 📬 Received session update from popup')
+        window.dispatchEvent(new CustomEvent('session-updated'))
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+
     return () => {
       console.log('[App] 🛑 Stopping AutoSessionService...')
       destroyAutoSessionService()
+      window.removeEventListener('message', handleMessage)
     }
   }, [])
 

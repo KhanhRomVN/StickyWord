@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Session } from './types'
 import { Clock, Play, X } from 'lucide-react'
-import CustomButton from '../../../components/common/CustomButton'
 
 const SessionPopupPage = () => {
   const [searchParams] = useSearchParams()
@@ -31,65 +30,105 @@ const SessionPopupPage = () => {
 
   const handleStart = () => {
     console.log('[SessionPopupPage] Starting session:', session?.id)
-    // Đóng popup và điều hướng main window
+
+    // Update session status to active
+    if (session) {
+      try {
+        const sessionsStr = localStorage.getItem('practice_sessions')
+        if (sessionsStr) {
+          const sessions: Session[] = JSON.parse(sessionsStr)
+          const updated = sessions.map((s) =>
+            s.id === session.id
+              ? { ...s, status: 'active' as const, started_at: new Date().toISOString() }
+              : s
+          )
+          localStorage.setItem('practice_sessions', JSON.stringify(updated))
+          console.log('[SessionPopupPage] ✅ Session status updated to active')
+        }
+      } catch (error) {
+        console.error('[SessionPopupPage] Error updating session:', error)
+      }
+    }
+
+    // Notify main window to reload sessions
+    if (window.opener) {
+      window.opener.postMessage({ type: 'session-updated' }, '*')
+      console.log('[SessionPopupPage] 📤 Sent update message to main window')
+    }
+
+    // Close popup window
     window.close()
-    // Có thể gửi message đến main window để navigate
   }
 
   const handleClose = () => {
+    console.log('[SessionPopupPage] Closing popup without starting')
     window.close()
   }
 
   if (!session) {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <p className="text-text-secondary">Đang tải session...</p>
+      <div className="h-screen flex items-center justify-center bg-transparent">
+        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-lg">
+          <p className="text-gray-600 dark:text-gray-400">Đang tải session...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen bg-background p-6 flex items-center justify-center">
-      <div className="bg-card-background border border-border rounded-xl shadow-2xl max-w-md w-full">
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <Clock className="w-6 h-6 text-primary" />
+    <div className="h-screen bg-transparent flex items-end justify-end p-5">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm animate-in slide-in-from-bottom-5 duration-300">
+        {/* Header */}
+        <div className="flex items-start justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-start gap-3 flex-1">
+            <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
+              <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-text-primary">Giờ luyện tập!</h3>
-              <p className="text-sm text-text-secondary">Session mới đã sẵn sàng</p>
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Giờ luyện tập!
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                Session mới đã sẵn sàng
+              </p>
             </div>
           </div>
-          <CustomButton variant="secondary" size="sm" onClick={handleClose}>
-            Ẩn
-          </CustomButton>
-        </div>
-
-        <div className="p-6">
-          <div className="text-center">
-            <p className="text-text-primary mb-2">
-              <strong>{session.question_ids.length}</strong> câu hỏi mới
-            </p>
-            <p className="text-sm text-text-secondary">
-              Session ID: <code className="text-xs">{session.id.substring(0, 12)}...</code>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex gap-3 p-6 border-t border-border">
-          <CustomButton variant="secondary" size="md" onClick={handleClose} className="flex-1">
-            Ẩn đi
-          </CustomButton>
-          <CustomButton
-            variant="primary"
-            size="md"
-            icon={Play}
-            onClick={handleStart}
-            className="flex-1"
+          <button
+            onClick={handleClose}
+            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
           >
-            Bắt đầu ngay
-          </CustomButton>
+            <X className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-5">
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl">
+            <div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {session.question_ids.length}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">câu hỏi mới</p>
+            </div>
+            <Play className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 p-5 pt-0">
+          <button
+            onClick={handleClose}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-colors"
+          >
+            Để sau
+          </button>
+          <button
+            onClick={handleStart}
+            className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-xl transition-all flex items-center justify-center gap-2"
+          >
+            <Play className="w-4 h-4" />
+            Bắt đầu
+          </button>
         </div>
       </div>
     </div>

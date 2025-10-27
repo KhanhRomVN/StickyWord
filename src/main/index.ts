@@ -21,7 +21,7 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    show: true,
+    show: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -32,6 +32,7 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
+    mainWindow?.maximize()
     mainWindow?.show()
   })
 
@@ -453,14 +454,24 @@ function setupPopupHandlers() {
       const primaryDisplay = screen.getPrimaryDisplay()
       const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
 
+      // Popup config: small window, bottom-right corner
+      const popupWidth = 420
+      const popupHeight = 280
+      const padding = 20
+
       const popupWindow = new BrowserWindow({
-        width: Math.floor(screenWidth / 2),
-        height: Math.floor(screenHeight * 0.75),
-        show: true,
+        width: popupWidth,
+        height: popupHeight,
+        x: screenWidth - popupWidth - padding,
+        y: screenHeight - popupHeight - padding,
+        show: false,
         frame: true,
-        resizable: false,
+        resizable: true,
+        minimizable: true,
+        maximizable: true,
         alwaysOnTop: true,
-        center: true,
+        skipTaskbar: false,
+        title: 'Session Notification',
         webPreferences: {
           preload: join(__dirname, '../preload/index.js'),
           sandbox: false,
@@ -482,8 +493,18 @@ function setupPopupHandlers() {
         })
       }
 
-      // Focus window
-      popupWindow.focus()
+      // Show with fade-in animation
+      popupWindow.once('ready-to-show', () => {
+        popupWindow.show()
+        popupWindow.focus()
+      })
+
+      // Auto close after 30 seconds if not interacted
+      setTimeout(() => {
+        if (popupWindow && !popupWindow.isDestroyed()) {
+          popupWindow.close()
+        }
+      }, 30000)
 
       return { success: true }
     } catch (error) {
