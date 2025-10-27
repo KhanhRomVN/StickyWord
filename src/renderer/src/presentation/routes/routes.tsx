@@ -4,8 +4,9 @@ import DashboardPage from '../pages/Dashboard'
 import CollectionPage from '../pages/Collection'
 import NotFoundPage from '../pages/Other/NotFoundPage'
 import SettingPage from '../pages/Setting'
-import SessionPopupPage from '../pages/SessionPopupPage'
+import SessionPopupPage from '../pages/SessionPopup'
 import QuestionPage from '../pages/Question'
+import SessionPage from '../pages/Session'
 
 export const routes: RouteObject[] = [
   {
@@ -45,6 +46,11 @@ export const routes: RouteObject[] = [
       {
         path: 'settings',
         element: <SettingPage />
+      },
+      // Session Routes
+      {
+        path: 'session',
+        element: <SessionPage />
       }
     ]
   },

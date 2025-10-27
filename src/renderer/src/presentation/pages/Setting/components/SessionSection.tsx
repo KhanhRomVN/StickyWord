@@ -6,7 +6,7 @@ import CustomInput from '../../../../components/common/CustomInput'
 import CustomButton from '../../../../components/common/CustomButton'
 import { AutoSessionConfig } from '../../Dashboard/services/AutoSessionService'
 import SessionPopup from '../../Dashboard/components/SessionPopup'
-import { Session } from '../../SessionPopupPage/types'
+import { Session } from '../../SessionPopup/types'
 
 interface ExtendedSessionConfig extends AutoSessionConfig {
   popup_behavior: 'surprise' | 'notification' | 'silent'

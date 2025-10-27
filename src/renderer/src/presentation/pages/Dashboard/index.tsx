@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Session } from '../SessionPopupPage/types'
+import { Session } from '../SessionPopup/types'
 import SessionList from './components/SessionList'
 
 const DashboardPage = () => {

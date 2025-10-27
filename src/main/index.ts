@@ -466,11 +466,12 @@ function setupPopupHandlers() {
         y: screenHeight - popupHeight - padding,
         show: false,
         frame: true,
-        resizable: true,
-        minimizable: true,
-        maximizable: true,
-        alwaysOnTop: true,
+        resizable: false,
+        minimizable: false,
+        maximizable: false,
+        alwaysOnTop: false,
         skipTaskbar: false,
+        backgroundColor: '#1f2937',
         title: 'Session Notification',
         webPreferences: {
           preload: join(__dirname, '../preload/index.js'),
@@ -499,19 +500,45 @@ function setupPopupHandlers() {
         popupWindow.focus()
       })
 
-      // Auto close after 30 seconds if not interacted
-      setTimeout(() => {
-        if (popupWindow && !popupWindow.isDestroyed()) {
-          popupWindow.close()
-        }
-      }, 30000)
-
       return { success: true }
     } catch (error) {
       console.error('[popup:show-session] Error:', error)
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to show popup'
+      }
+    }
+  })
+
+  // Hide popup and show/focus main window
+  ipcMain.handle('popup:hide-and-focus-main', async (_event, sessionId: string) => {
+    try {
+      // Hide all popup windows
+      const allWindows = BrowserWindow.getAllWindows()
+      allWindows.forEach((win) => {
+        if (win !== mainWindow && win.getTitle() === 'Session Notification') {
+          win.hide()
+        }
+      })
+
+      // Show and focus main window
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore()
+        }
+        mainWindow.show()
+        mainWindow.focus()
+
+        // Navigate to session page
+        mainWindow.webContents.send('navigate-to-session', sessionId)
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error('[popup:hide-and-focus-main] Error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to focus main window'
       }
     }
   })

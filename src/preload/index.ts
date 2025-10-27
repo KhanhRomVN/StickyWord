@@ -21,6 +21,7 @@ export interface API {
   }
   popup: {
     showSession: (sessionData: any) => Promise<{ success: boolean; error?: string }>
+    hideAndFocusMain: (sessionId: string) => Promise<{ success: boolean; error?: string }>
   }
 }
 
@@ -36,7 +37,9 @@ const api: API = {
     status: () => ipcRenderer.invoke('cloud-db:status')
   },
   popup: {
-    showSession: (sessionData: any) => ipcRenderer.invoke('popup:show-session', sessionData)
+    showSession: (sessionData: any) => ipcRenderer.invoke('popup:show-session', sessionData),
+    hideAndFocusMain: (sessionId: string) =>
+      ipcRenderer.invoke('popup:hide-and-focus-main', sessionId)
   },
   storage: {
     set: (key: string, value: any) => ipcRenderer.invoke('storage:set', key, value),
@@ -50,7 +53,23 @@ const api: API = {
 // just add to the DOM global.
 if (process.contextIsolated) {
   try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
+    contextBridge.exposeInMainWorld('electron', {
+      ...electronAPI,
+      ipcRenderer: {
+        on: (channel: string, listener: (...args: any[]) => void) => {
+          ipcRenderer.on(channel, listener)
+        },
+        removeListener: (channel: string, listener: (...args: any[]) => void) => {
+          ipcRenderer.removeListener(channel, listener)
+        },
+        send: (channel: string, ...args: any[]) => {
+          ipcRenderer.send(channel, ...args)
+        },
+        invoke: (channel: string, ...args: any[]) => {
+          return ipcRenderer.invoke(channel, ...args)
+        }
+      }
+    })
     contextBridge.exposeInMainWorld('api', api)
     contextBridge.exposeInMainWorld('electronAPI', api) // For compatibility
   } catch (error) {
@@ -58,7 +77,15 @@ if (process.contextIsolated) {
   }
 } else {
   // TypeScript now knows these properties exist on Window
-  ;(window as any).electron = electronAPI
+  ;(window as any).electron = {
+    ...electronAPI,
+    ipcRenderer: {
+      on: ipcRenderer.on.bind(ipcRenderer),
+      removeListener: ipcRenderer.removeListener.bind(ipcRenderer),
+      send: ipcRenderer.send.bind(ipcRenderer),
+      invoke: ipcRenderer.invoke.bind(ipcRenderer)
+    }
+  }
   ;(window as any).api = api
   ;(window as any).electronAPI = api
 }

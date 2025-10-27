@@ -71,12 +71,24 @@ function App() {
       }
     }
 
+    const handleNavigateToSession = (_event: any, sessionId: string) => {
+      console.log('[App] 🚀 Navigate to session:', sessionId)
+      router.navigate(`/session?sessionId=${sessionId}`)
+    }
+
     window.addEventListener('message', handleMessage)
+
+    if (window.electron?.ipcRenderer) {
+      window.electron.ipcRenderer.on('navigate-to-session', handleNavigateToSession)
+    }
 
     return () => {
       console.log('[App] 🛑 Stopping AutoSessionService...')
       destroyAutoSessionService()
       window.removeEventListener('message', handleMessage)
+      if (window.electron?.ipcRenderer) {
+        window.electron.ipcRenderer.removeListener('navigate-to-session', handleNavigateToSession)
+      }
     }
   }, [])
 
