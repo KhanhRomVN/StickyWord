@@ -4,6 +4,7 @@ import DashboardPage from '../pages/Dashboard'
 import CollectionPage from '../pages/Collection'
 import NotFoundPage from '../pages/Other/NotFoundPage'
 import SettingPage from '../pages/Setting'
+import SessionPopupPage from '../pages/SessionPopupPage'
 import QuestionPage from '../pages/Question'
 
 export const routes: RouteObject[] = [
@@ -28,26 +29,10 @@ export const routes: RouteObject[] = [
         element: <CollectionPage />
       },
       {
-        path: 'analytics/statistics',
+        path: 'analytics',
         element: (
           <div className="p-6">
-            <h1 className="text-2xl font-bold">Statistics</h1>
-          </div>
-        )
-      },
-      {
-        path: 'analytics/progress',
-        element: (
-          <div className="p-6">
-            <h1 className="text-2xl font-bold">Progress</h1>
-          </div>
-        )
-      },
-      {
-        path: 'analytics/most-reviewed',
-        element: (
-          <div className="p-6">
-            <h1 className="text-2xl font-bold">Most Reviewed</h1>
+            <h1 className="text-2xl font-bold">Analytics</h1>
           </div>
         )
       },
@@ -62,6 +47,10 @@ export const routes: RouteObject[] = [
         element: <SettingPage />
       }
     ]
+  },
+  {
+    path: '/popup-session',
+    element: <SessionPopupPage />
   },
   {
     path: '*',

@@ -100,9 +100,7 @@ export function ThemeProvider({
   storageKey = 'vite-ui-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  )
+  const [theme, setTheme] = useState<Theme>(defaultTheme)
 
   // Get the effective theme (resolve 'system' to actual theme)
   const getEffectiveTheme = useCallback((): 'light' | 'dark' => {
@@ -114,22 +112,41 @@ export function ThemeProvider({
 
   // Initialize color settings based on theme
   const [colorSettings, setColorSettings] = useState<ColorSettings>(() => {
-    const saved = localStorage.getItem(`${storageKey}-colors`)
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch (e) {
-        console.warn('Failed to parse saved color settings:', e)
-      }
-    }
-    return getDefaultColorSettings(getEffectiveTheme())
+    return getDefaultColorSettings('light')
   })
 
+  // Load theme from Electron storage on mount
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        if (!window.api) {
+          console.warn('[ThemeProvider] window.api is not available')
+          return
+        }
+
+        const savedTheme = await window.api.storage.get(storageKey)
+        if (savedTheme) {
+          setTheme(savedTheme as Theme)
+        }
+
+        const savedColors = await window.api.storage.get(`${storageKey}-colors`)
+        if (savedColors) {
+          setColorSettings(savedColors)
+        }
+      } catch (error) {
+        console.warn('Failed to load theme settings:', error)
+      }
+    }
+    loadTheme()
+  }, [storageKey])
+
   const updateColorSettings = useCallback(
-    (settings: ColorSettings) => {
+    async (settings: ColorSettings) => {
       setColorSettings(settings)
       try {
-        localStorage.setItem(`${storageKey}-colors`, JSON.stringify(settings))
+        if (window.api) {
+          await window.api.storage.set(`${storageKey}-colors`, settings)
+        }
       } catch (e) {
         console.warn('Failed to save color settings:', e)
       }
@@ -210,9 +227,11 @@ export function ThemeProvider({
   }, [theme, applyTheme])
 
   const handleSetTheme = useCallback(
-    (newTheme: Theme) => {
+    async (newTheme: Theme) => {
       try {
-        localStorage.setItem(storageKey, newTheme)
+        if (window.api) {
+          await window.api.storage.set(storageKey, newTheme)
+        }
       } catch (e) {
         console.warn('Failed to save theme:', e)
       }

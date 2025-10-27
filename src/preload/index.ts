@@ -19,6 +19,9 @@ export interface API {
     get: (key: string) => Promise<any>
     remove: (key: string) => Promise<void>
   }
+  popup: {
+    showSession: (sessionData: any) => Promise<{ success: boolean; error?: string }>
+  }
 }
 
 // Custom APIs for renderer
@@ -31,6 +34,9 @@ const api: API = {
     initializeSchema: () => ipcRenderer.invoke('cloud-db:initialize-schema'),
     query: (query: string, params?: any[]) => ipcRenderer.invoke('cloud-db:query', query, params),
     status: () => ipcRenderer.invoke('cloud-db:status')
+  },
+  popup: {
+    showSession: (sessionData: any) => ipcRenderer.invoke('popup:show-session', sessionData)
   },
   storage: {
     set: (key: string, value: any) => ipcRenderer.invoke('storage:set', key, value),

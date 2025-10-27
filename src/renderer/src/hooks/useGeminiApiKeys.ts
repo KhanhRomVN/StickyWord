@@ -13,25 +13,27 @@ export const useGeminiApiKeys = () => {
   const [apiKeys, setApiKeys] = useState<GeminiApiKey[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Load API keys from localStorage
+  // Load API keys from Electron storage
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        setApiKeys(Array.isArray(parsed) ? parsed : [])
+    const loadKeys = async () => {
+      try {
+        const stored = await window.api.storage.get(STORAGE_KEY)
+        if (stored) {
+          setApiKeys(Array.isArray(stored) ? stored : [])
+        }
+      } catch (error) {
+        console.error('Error loading API keys:', error)
+      } finally {
+        setIsLoading(false)
       }
-    } catch (error) {
-      console.error('Error loading API keys:', error)
-    } finally {
-      setIsLoading(false)
     }
+    loadKeys()
   }, [])
 
-  // Save API keys to localStorage
-  const saveToStorage = useCallback((keys: GeminiApiKey[]) => {
+  // Save API keys to Electron storage
+  const saveToStorage = useCallback(async (keys: GeminiApiKey[]) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(keys))
+      await window.api.storage.set(STORAGE_KEY, keys)
     } catch (error) {
       console.error('Error saving API keys:', error)
     }

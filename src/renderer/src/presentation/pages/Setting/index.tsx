@@ -1,56 +1,113 @@
-import { Settings as SettingsIcon } from 'lucide-react'
+import { useState } from 'react'
+import { Settings as SettingsIcon, Palette, Key, Bell, BarChart3 } from 'lucide-react'
 import AppearanceSection from './components/AppearanceSection'
 import GeminiApiKeySection from './components/GeminiApiKeySection'
-import PopupBehaviorSection from './components/PopupBehaviorSection'
+import SessionSection from './components/SessionSection'
 import AnalyticsSection from './components/AnalyticsSection'
 import GeneralSection from './components/GeneralSection'
 
+type SettingTab = 'general' | 'appearance' | 'gemini' | 'session' | 'analytics'
+
+interface SettingOption {
+  id: SettingTab
+  label: string
+  icon: React.ElementType
+}
+
+const settingOptions: SettingOption[] = [
+  {
+    id: 'general',
+    label: 'General',
+    icon: SettingsIcon
+  },
+  {
+    id: 'gemini',
+    label: 'Gemini API',
+    icon: Key
+  },
+  {
+    id: 'session',
+    label: 'Session',
+    icon: Bell
+  },
+  {
+    id: 'analytics',
+    label: 'Security',
+    icon: BarChart3
+  },
+  {
+    id: 'appearance',
+    label: 'Appearance',
+    icon: Palette
+  }
+]
+
 const SettingPage = () => {
+  const [activeTab, setActiveTab] = useState<SettingTab>('general')
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'general':
+        return <GeneralSection />
+      case 'appearance':
+        return <AppearanceSection />
+      case 'gemini':
+        return <GeminiApiKeySection />
+      case 'session':
+        return <SessionSection />
+      case 'analytics':
+        return <AnalyticsSection />
+      default:
+        return null
+    }
+  }
+
   return (
-    <div className="h-screen bg-background overflow-y-auto">
-      <div className="max-w-6xl mx-auto p-8">
-        {/* Header */}
-        <div className="mb-10">
-          <div className="flex items-center gap-4 mb-3">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <SettingsIcon className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-text-primary">Settings</h1>
-              <p className="text-text-secondary mt-1">
-                Quản lý cài đặt và tùy chỉnh ứng dụng theo ý muốn
-              </p>
-            </div>
-          </div>
+    <div className="h-full flex flex-col">
+      <div className="max-w-7xl mx-auto w-full flex flex-col h-full px-6">
+        {/* Page Header - Fixed */}
+        <div className="flex-shrink-0 pt-6 pb-4">
+          <h1 className="text-3xl font-bold text-text-primary mb-2">Settings</h1>
+          <p className="text-text-secondary">Manage your application preferences and settings</p>
         </div>
 
-        {/* Settings Grid Layout */}
-        <div className="space-y-6">
-          {/* Row 1: General + Appearance */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <GeneralSection />
-            </div>
-            <div>
-              <AppearanceSection />
-            </div>
+        {/* Main Content Area with Sidebar - Scrollable */}
+        <div className="flex-1 flex gap-6 overflow-hidden pb-6">
+          {/* Sidebar - Fixed */}
+          <div className="w-64 flex-shrink-0">
+            <nav className="bg-card-background rounded-xl border border-gray-200 dark:border-gray-700 p-2 sticky top-0">
+              {settingOptions.map((option) => {
+                const Icon = option.icon
+                const isActive = activeTab === option.id
+
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => setActiveTab(option.id)}
+                    className={`
+                      w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200
+                      ${
+                        isActive
+                          ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium'
+                          : 'text-text-secondary hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      }
+                    `}
+                  >
+                    <Icon
+                      className={`h-5 w-5 ${isActive ? 'text-blue-600 dark:text-blue-400' : ''}`}
+                    />
+                    <span className="text-sm">{option.label}</span>
+                  </button>
+                )
+              })}
+            </nav>
           </div>
 
-          {/* Row 3: Gemini API (Full Width) */}
-          <GeminiApiKeySection />
-
-          {/* Row 4: Popup Behavior (Full Width) */}
-          <PopupBehaviorSection />
-
-          {/* Row 5: Analytics (Full Width) */}
-          <AnalyticsSection />
-        </div>
-
-        {/* Footer Info */}
-        <div className="mt-12 pt-8 border-t border-border">
-          <div className="text-center text-sm text-text-secondary">
-            <p>StickyWord v1.0.0</p>
-            <p className="mt-1">Made with ❤️ for language learners | © 2025 All rights reserved</p>
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="bg-card-background rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+              {renderContent()}
+            </div>
           </div>
         </div>
       </div>

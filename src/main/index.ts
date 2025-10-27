@@ -444,6 +444,58 @@ function setupCloudDatabaseHandlers() {
   })
 }
 
+// Setup IPC handlers for popup windows
+function setupPopupHandlers() {
+  ipcMain.handle('popup:show-session', async (_event, sessionData: any) => {
+    try {
+      // Get screen dimensions
+      const { screen } = require('electron')
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
+
+      const popupWindow = new BrowserWindow({
+        width: Math.floor(screenWidth / 2),
+        height: Math.floor(screenHeight * 0.75),
+        show: true,
+        frame: true,
+        resizable: false,
+        alwaysOnTop: true,
+        center: true,
+        webPreferences: {
+          preload: join(__dirname, '../preload/index.js'),
+          sandbox: false,
+          nodeIntegration: false,
+          contextIsolation: true
+        }
+      })
+
+      popupWindow.setMenuBarVisibility(false)
+
+      // Load popup HTML
+      if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+        popupWindow.loadURL(
+          `${process.env['ELECTRON_RENDERER_URL']}#/popup-session?sessionId=${sessionData.id}`
+        )
+      } else {
+        popupWindow.loadFile(join(__dirname, '../renderer/index.html'), {
+          hash: `/popup-session?sessionId=${sessionData.id}`
+        })
+      }
+
+      // Focus window
+      popupWindow.focus()
+
+      return { success: true }
+    } catch (error) {
+      console.error('[popup:show-session] Error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to show popup'
+      }
+    }
+  })
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
@@ -453,6 +505,7 @@ app.whenReady().then(async () => {
   // Setup IPC handlers
   setupStorageHandlers()
   setupCloudDatabaseHandlers()
+  setupPopupHandlers()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

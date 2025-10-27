@@ -43,7 +43,7 @@ const DatabaseConnectionOverlay = () => {
             onChange={setConnectionString}
             placeholder="postgresql://user:pass@host:port/dbname"
             variant="default"
-            size="md"
+            size="sm"
           />
 
           {error && (
@@ -54,7 +54,7 @@ const DatabaseConnectionOverlay = () => {
 
           <CustomButton
             variant="primary"
-            size="md"
+            size="sm"
             onClick={handleConnect}
             disabled={!connectionString.trim() || isConnecting}
             className="w-full"

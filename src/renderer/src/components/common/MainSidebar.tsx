@@ -64,24 +64,8 @@ const menuItems: MenuItem[] = [
   {
     icon: BarChart3,
     label: 'Analytics',
-    description: 'Phân tích dữ liệu',
-    submenu: [
-      {
-        label: 'Statistics',
-        href: '/analytics/statistics',
-        icon: BarChart3
-      },
-      {
-        label: 'Progress',
-        href: '/analytics/progress',
-        icon: TrendingUp
-      },
-      {
-        label: 'Most Reviewed',
-        href: '/analytics/most-reviewed',
-        icon: BookOpen
-      }
-    ]
+    href: '/analytics',
+    description: 'Phân tích dữ liệu'
   },
   {
     icon: HelpCircle,
@@ -156,7 +140,7 @@ export function MainSidebar({ className }: MainSidebarProps) {
     >
       {/* Logo */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary">StickyWord</h1>
+        <h1 className="text-2xl font-bold text-text-primary">StickyWord</h1>
         <p className="text-sm text-text-secondary mt-1">Management System</p>
       </div>
 

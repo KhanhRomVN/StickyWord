@@ -31,10 +31,17 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
   const checkSavedConnection = async () => {
     try {
       setIsLoading(true)
-      const saved = localStorage.getItem(STORAGE_KEY)
+
+      if (!window.api) {
+        console.error('[DatabaseProvider] window.api is not available')
+        setIsLoading(false)
+        return
+      }
+
+      const saved = await window.api.storage.get(STORAGE_KEY)
 
       if (saved) {
-        const { connectionString: savedConnectionString } = JSON.parse(saved)
+        const { connectionString: savedConnectionString } = saved
 
         if (savedConnectionString) {
           const success = await testConnection(savedConnectionString)
@@ -49,7 +56,7 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
             setError(null)
             console.log('[DatabaseProvider] Cloud database instance initialized')
           } else {
-            localStorage.removeItem(STORAGE_KEY)
+            await window.api.storage.remove(STORAGE_KEY)
             setError('Kết nối đã lưu không hợp lệ')
           }
         }
@@ -90,6 +97,13 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
       setIsLoading(true)
       setError(null)
 
+      if (!window.api) {
+        console.error('[DatabaseProvider] window.api is not available')
+        setError('Electron API không khả dụng')
+        setIsLoading(false)
+        return false
+      }
+
       const success = await testConnection(connString)
 
       if (success) {
@@ -99,7 +113,7 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
 
         setConnectionString(connString)
         setIsConnected(true)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ connectionString: connString }))
+        await window.api.storage.set(STORAGE_KEY, { connectionString: connString })
         console.log('[DatabaseProvider] Cloud database instance initialized')
         return true
       } else {
@@ -115,11 +129,14 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
     }
   }
 
-  const disconnect = () => {
+  const disconnect = async () => {
     setIsConnected(false)
     setConnectionString(null)
     setError(null)
-    localStorage.removeItem(STORAGE_KEY)
+
+    if (window.api) {
+      await window.api.storage.remove(STORAGE_KEY)
+    }
   }
 
   return (

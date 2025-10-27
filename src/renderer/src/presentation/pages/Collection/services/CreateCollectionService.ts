@@ -629,6 +629,19 @@ IMPORTANT RULES:
 
     return parsed.grammar
   }
+
+  /**
+   * Generate practice questions with AI
+   */
+  async generateQuestions(prompt: string): Promise<string> {
+    try {
+      const content = await this.makeRequest(prompt)
+      return content
+    } catch (error) {
+      console.error('[CreateCollectionService] Error generating questions:', error)
+      throw error
+    }
+  }
 }
 
 // Singleton instance factory
