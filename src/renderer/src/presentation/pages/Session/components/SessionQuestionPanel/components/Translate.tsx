@@ -1,7 +1,7 @@
 import { translate_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
 import CustomInput from '../../../../../../components/common/CustomInput'
-import { CheckCircle, XCircle, Lightbulb } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 interface TranslateViewProps {
   question: translate_question

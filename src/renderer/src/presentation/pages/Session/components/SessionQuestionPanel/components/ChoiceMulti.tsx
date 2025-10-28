@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { choice_multi_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { CheckCircle, XCircle, Lightbulb, Check } from 'lucide-react'
+import { CheckCircle, XCircle, Check } from 'lucide-react'
 
 interface ChoiceMultiProps {
   question: choice_multi_question
@@ -11,13 +11,7 @@ interface ChoiceMultiProps {
   onSubmit: () => void
 }
 
-const ChoiceMulti = ({
-  question,
-  userAnswer,
-  setUserAnswer,
-  isSubmitted,
-  onSubmit
-}: ChoiceMultiProps) => {
+const ChoiceMulti = ({ question, setUserAnswer, isSubmitted, onSubmit }: ChoiceMultiProps) => {
   const [selectedOptions, setSelectedOptions] = useState<string[]>([])
 
   const handleOptionToggle = (optionId: string) => {
@@ -150,7 +144,8 @@ const ChoiceMulti = ({
           onClick={onSubmit}
           disabled={
             selectedOptions.length === 0 ||
-            (question.min_selections && selectedOptions.length < question.min_selections)
+            (question.min_selections !== undefined &&
+              selectedOptions.length < question.min_selections)
           }
           className="w-full"
         >

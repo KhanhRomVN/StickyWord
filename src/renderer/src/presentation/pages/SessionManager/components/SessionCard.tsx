@@ -1,4 +1,4 @@
-import { Play, Calendar, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { Play, Calendar, Clock, Trash2 } from 'lucide-react'
 import CustomButton from '../../../../components/common/CustomButton'
 
 interface SessionCardProps {

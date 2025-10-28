@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { choice_one_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { CheckCircle, XCircle, Lightbulb } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 interface ChoiceOneProps {
   question: choice_one_question
@@ -11,13 +11,7 @@ interface ChoiceOneProps {
   onSubmit: () => void
 }
 
-const ChoiceOne = ({
-  question,
-  userAnswer,
-  setUserAnswer,
-  isSubmitted,
-  onSubmit
-}: ChoiceOneProps) => {
+const ChoiceOne = ({ question, setUserAnswer, isSubmitted, onSubmit }: ChoiceOneProps) => {
   const [selectedOption, setSelectedOption] = useState<string>('')
 
   const handleOptionSelect = (optionId: string) => {

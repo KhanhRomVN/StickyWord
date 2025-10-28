@@ -1,7 +1,7 @@
 import { reverse_translation_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
 import CustomInput from '../../../../../../components/common/CustomInput'
-import { CheckCircle, XCircle, Lightbulb } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 interface ReverseTranslationViewProps {
   question: reverse_translation_question

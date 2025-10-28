@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { gap_fill_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
 import CustomInput from '../../../../../../components/common/CustomInput'
-import { CheckCircle, XCircle, Lightbulb } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 interface GapFillProps {
   question: gap_fill_question
@@ -12,7 +12,7 @@ interface GapFillProps {
   onSubmit: () => void
 }
 
-const GapFill = ({ question, userAnswer, setUserAnswer, isSubmitted, onSubmit }: GapFillProps) => {
+const GapFill = ({ question, setUserAnswer, isSubmitted, onSubmit }: GapFillProps) => {
   const [gapAnswers, setGapAnswers] = useState<{ [key: number]: string }>({})
 
   const handleGapChange = (position: number, value: string) => {

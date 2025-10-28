@@ -32,7 +32,6 @@ interface SessionQuestionPanelProps {
 const SessionQuestionPanel = ({
   question,
   questionIndex,
-  totalQuestions,
   onAnswerSubmit,
   existingAnswer
 }: SessionQuestionPanelProps) => {
@@ -251,7 +250,7 @@ const SessionQuestionPanel = ({
       default:
         return (
           <div className="text-center text-gray-500 py-8">
-            Loại câu hỏi không được hỗ trợ: {question.question_type}
+            Loại câu hỏi không được hỗ trợ: {question}
           </div>
         )
     }

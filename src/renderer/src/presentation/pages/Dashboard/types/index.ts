@@ -26,8 +26,6 @@ export interface MasteryDistribution {
   mastered: number
 }
 
-// File: src/renderer/src/presentation/pages/Dashboard/types/collection-analytics.ts
-
 export interface CollectionItemAnalytics {
   id: string
   content: string

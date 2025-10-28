@@ -17,8 +17,7 @@ interface CollectionListPanelProps {
 const CollectionListPanel = ({
   onSelectItem,
   selectedItem,
-  defaultFilterType = 'all',
-  onItemDeleted
+  defaultFilterType = 'all'
 }: CollectionListPanelProps) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<FilterType>(defaultFilterType)
@@ -54,23 +53,6 @@ const CollectionListPanel = ({
   useEffect(() => {
     loadItems('all')
   }, [])
-
-  // Reload items when an item is deleted
-  useEffect(() => {
-    if (onItemDeleted) {
-      const handleDelete = async (itemId: string) => {
-        console.log('[CollectionListPanel] Reloading after delete:', itemId)
-        await loadItems(filterType)
-        onSelectItem(null)
-      }
-
-      // Store the handler for cleanup
-      const deleteHandler = (itemId: string) => handleDelete(itemId)
-      return () => {
-        // Cleanup if needed
-      }
-    }
-  }, [onItemDeleted, filterType, onSelectItem])
 
   // Listen for item deletion events
   useEffect(() => {

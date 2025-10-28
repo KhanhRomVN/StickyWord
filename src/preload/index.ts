@@ -14,6 +14,9 @@ export interface API {
     ) => Promise<{ success: boolean; rows: any[]; rowCount: number; error?: string }>
     status: () => Promise<{ isConnected: boolean }>
   }
+  vocabulary: {
+    update: (item: any) => Promise<{ success: boolean; error?: string }>
+  }
   storage: {
     set: (key: string, value: any) => Promise<void>
     get: (key: string) => Promise<any>
@@ -35,6 +38,33 @@ const api: API = {
     initializeSchema: () => ipcRenderer.invoke('cloud-db:initialize-schema'),
     query: (query: string, params?: any[]) => ipcRenderer.invoke('cloud-db:query', query, params),
     status: () => ipcRenderer.invoke('cloud-db:status')
+  },
+  vocabulary: {
+    update: async (item: any) => {
+      try {
+        const { getCloudDatabase } = await import('../renderer/src/services/CloudDatabaseService')
+        const db = getCloudDatabase()
+        if (!db) throw new Error('Database not connected')
+
+        if (item.item_type === 'word' || item.item_type === 'phrase') {
+          await db.updateVocabularyItem(item)
+        } else if (
+          item.item_type === 'tense' ||
+          item.item_type === 'structure' ||
+          item.item_type === 'rule' ||
+          item.item_type === 'pattern'
+        ) {
+          await db.updateGrammarItem(item)
+        }
+
+        return { success: true }
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Update failed'
+        }
+      }
+    }
   },
   popup: {
     showSession: (sessionData: any) => ipcRenderer.invoke('popup:show-session', sessionData),

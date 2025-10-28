@@ -11,13 +11,7 @@ interface TrueFalseProps {
   onSubmit: () => void
 }
 
-const TrueFalse = ({
-  question,
-  userAnswer,
-  setUserAnswer,
-  isSubmitted,
-  onSubmit
-}: TrueFalseProps) => {
+const TrueFalse = ({ question, setUserAnswer, isSubmitted, onSubmit }: TrueFalseProps) => {
   const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null)
 
   const handleAnswerSelect = (answer: boolean) => {

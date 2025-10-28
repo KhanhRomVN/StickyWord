@@ -1,7 +1,7 @@
 // File: SessionPage/components/SessionListPanel/index.tsx
 import { useMemo } from 'react'
-import { Question } from '../../../Question/types'
-import { CheckCircle2, XCircle, Circle, Send, X } from 'lucide-react'
+import { Question } from '../../types'
+import { CheckCircle2, XCircle, Send, X } from 'lucide-react'
 import CustomButton from '../../../../../components/common/CustomButton'
 
 interface SessionAnswer {

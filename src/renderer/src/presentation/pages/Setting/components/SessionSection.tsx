@@ -4,8 +4,8 @@ import CustomCombobox from '../../../../components/common/CustomCombobox'
 import CustomBadge from '../../../../components/common/CustomBadge'
 import CustomInput from '../../../../components/common/CustomInput'
 import CustomButton from '../../../../components/common/CustomButton'
-import { AutoSessionConfig } from '../../Dashboard/services/AutoSessionService'
-import { Session } from '../../SessionPopup/types'
+import { AutoSessionConfig } from '../../../../services/AutoSessionService'
+import { Session } from '../../Session/types'
 
 interface ExtendedSessionConfig extends AutoSessionConfig {
   popup_behavior: 'surprise' | 'notification' | 'silent'
@@ -25,8 +25,8 @@ const SessionSection = () => {
 
   const [isTestRunning, setIsTestRunning] = useState(false)
   const [testCountdown, setTestCountdown] = useState(0)
-  const [showTestPopup, setShowTestPopup] = useState(false)
-  const [testSession, setTestSession] = useState<Session | null>(null)
+  const [, setShowTestPopup] = useState(false)
+  const [, setTestSession] = useState<Session | null>(null)
 
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle')
@@ -178,19 +178,6 @@ const SessionSection = () => {
       setIsTestRunning(false)
       setTestCountdown(0)
     }
-  }
-
-  const handleStartTestSession = () => {
-    console.log('[SessionSection] 🎯 Starting test session:', testSession?.id)
-    setShowTestPopup(false)
-    // Navigate to question page
-    window.location.hash = '#/questions'
-  }
-
-  const handleCloseTestPopup = () => {
-    console.log('[SessionSection] ❌ Test popup closed')
-    setShowTestPopup(false)
-    setTestSession(null)
   }
 
   const intervalOptions = [

@@ -1,10 +1,10 @@
-import { DashboardSession } from '../types'
+import { Session } from '../../Session/types'
 import CustomButton from '../../../../components/common/CustomButton'
 import { Play, Calendar, BatteryLow, BatteryMedium, BatteryFull, Clock } from 'lucide-react'
 import React from 'react'
 
 interface SessionSectionProps {
-  sessions: DashboardSession[]
+  sessions: Session[]
   onStartSession: (sessionId: string) => void
 }
 

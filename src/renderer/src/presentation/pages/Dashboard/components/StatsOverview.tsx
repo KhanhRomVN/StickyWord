@@ -3,6 +3,8 @@ import { TrendingUp, BookOpen, MessageSquare, Flame } from 'lucide-react'
 interface StatsOverviewProps {
   totalVocabulary: number
   totalGrammar: number
+  totalQuestions: number
+  totalSessions: number
   averageAccuracy: number
   studyStreak: number
 }
@@ -10,6 +12,8 @@ interface StatsOverviewProps {
 const StatsOverview = ({
   totalVocabulary,
   totalGrammar,
+  totalQuestions,
+  totalSessions,
   averageAccuracy,
   studyStreak
 }: StatsOverviewProps) => {
@@ -27,6 +31,20 @@ const StatsOverview = ({
       icon: MessageSquare,
       color: 'text-green-600 dark:text-green-400',
       bgColor: 'bg-green-500/10'
+    },
+    {
+      label: 'Questions',
+      value: totalQuestions,
+      icon: MessageSquare,
+      color: 'text-purple-600 dark:text-purple-400',
+      bgColor: 'bg-purple-500/10'
+    },
+    {
+      label: 'Sessions',
+      value: totalSessions,
+      icon: BookOpen,
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-500/10'
     },
     {
       label: 'Accuracy',
@@ -47,7 +65,7 @@ const StatsOverview = ({
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold text-text-primary">Overview</h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {stats.map((stat, index) => (
           <div
             key={index}

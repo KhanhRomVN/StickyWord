@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { matching_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { CheckCircle, XCircle, Lightbulb, ArrowRight } from 'lucide-react'
+import { CheckCircle, XCircle, ArrowRight } from 'lucide-react'
 
 interface MatchingProps {
   question: matching_question
@@ -11,13 +11,7 @@ interface MatchingProps {
   onSubmit: () => void
 }
 
-const Matching = ({
-  question,
-  userAnswer,
-  setUserAnswer,
-  isSubmitted,
-  onSubmit
-}: MatchingProps) => {
+const Matching = ({ question, setUserAnswer, isSubmitted, onSubmit }: MatchingProps) => {
   const [matches, setMatches] = useState<{ [leftId: string]: string }>({})
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null)
 
@@ -41,21 +35,6 @@ const Matching = ({
   }
 
   const isCorrect = isSubmitted ? checkAnswer() : false
-
-  const getMatchTypeLabel = (type: string) => {
-    switch (type) {
-      case 'word_definition':
-        return 'Từ - Định nghĩa'
-      case 'word_synonym':
-        return 'Từ - Từ đồng nghĩa'
-      case 'word_antonym':
-        return 'Từ - Từ trái nghĩa'
-      case 'word_translation':
-        return 'Từ - Bản dịch'
-      default:
-        return 'Khác'
-    }
-  }
 
   return (
     <div className="space-y-6">

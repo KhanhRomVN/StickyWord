@@ -27,6 +27,9 @@ interface API {
     ) => Promise<{ success: boolean; rows: any[]; rowCount: number; error?: string }>
     status: () => Promise<{ isConnected: boolean }>
   }
+  vocabulary: {
+    update: (item: any) => Promise<{ success: boolean; error?: string }>
+  }
   popup: {
     showSession: (sessionData: any) => Promise<{ success: boolean; error?: string }>
     hideAndFocusMain: (sessionId: string) => Promise<{ success: boolean; error?: string }>

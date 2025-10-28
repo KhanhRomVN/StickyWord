@@ -3,12 +3,13 @@ import SessionSection from './components/SessionSection'
 import StatsOverview from './components/StatsOverview'
 import WeeklyProgressChart from './components/WeeklyProgressChart'
 import MasteryDistribution from './components/MasteryDistribution'
-import { DashboardAnalytics, DashboardSession } from './types'
+import { DashboardAnalytics } from './types'
+import { Session } from '../Session/types'
 import { FAKE_ANALYTICS, FAKE_SESSIONS } from './constants'
 
 const DashboardPage = () => {
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null)
-  const [sessions, setSessions] = useState<DashboardSession[]>([])
+  const [sessions, setSessions] = useState<Session[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {

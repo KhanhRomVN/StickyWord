@@ -1,10 +1,5 @@
-import {
-  CollectionAnalytics,
-  CollectionOverview,
-  DashboardAnalytics,
-  DashboardSession,
-  WeeklyProgress
-} from '../types'
+import { DashboardAnalytics, WeeklyProgress } from '../types'
+import { Session } from '../../Session/types'
 
 // Fake Weekly Progress Data
 const generateWeeklyProgress = (): WeeklyProgress[] => {
@@ -48,14 +43,11 @@ export const FAKE_ANALYTICS: DashboardAnalytics = {
 }
 
 // Fake Sessions Data
-export const FAKE_SESSIONS: DashboardSession[] = [
+export const FAKE_SESSIONS: Session[] = [
   {
     id: 'session_001',
     title: 'Daily Practice #45',
-    question_count: 10,
-    completed_questions: 10,
-    correct_answers: 8,
-    status: 'pending',
+    question_ids: [],
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     difficulty_level: 5
@@ -63,10 +55,7 @@ export const FAKE_SESSIONS: DashboardSession[] = [
   {
     id: 'session_002',
     title: 'Grammar Review #12',
-    question_count: 15,
-    completed_questions: 8,
-    correct_answers: 6,
-    status: 'pending',
+    question_ids: [],
     created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
     expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     difficulty_level: 6
@@ -74,10 +63,7 @@ export const FAKE_SESSIONS: DashboardSession[] = [
   {
     id: 'session_003',
     title: 'Vocabulary Quiz #23',
-    question_count: 20,
-    completed_questions: 0,
-    correct_answers: 0,
-    status: 'pending',
+    question_ids: [],
     created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
     difficulty_level: 4
@@ -85,10 +71,7 @@ export const FAKE_SESSIONS: DashboardSession[] = [
   {
     id: 'session_004',
     title: 'Advanced Practice #8',
-    question_count: 12,
-    completed_questions: 12,
-    correct_answers: 10,
-    status: 'pending',
+    question_ids: [],
     created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     expires_at: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
     difficulty_level: 8
@@ -96,10 +79,7 @@ export const FAKE_SESSIONS: DashboardSession[] = [
   {
     id: 'session_005',
     title: 'Quick Test #67',
-    question_count: 8,
-    completed_questions: 0,
-    correct_answers: 0,
-    status: 'pending',
+    question_ids: [],
     created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     expires_at: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
     difficulty_level: 3

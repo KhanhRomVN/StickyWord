@@ -6,6 +6,13 @@ import { Plus, RefreshCw, AlertCircle } from 'lucide-react'
 import { getSessionService } from '../../../services/SessionService'
 import { createCreateCollectionService } from '../Collection/services/CreateCollectionService'
 
+// Type guard helper
+const ensureApiAvailable = () => {
+  if (!window.api) {
+    throw new Error('Electron API không khả dụng')
+  }
+}
+
 interface Session {
   id: string
   title?: string
@@ -34,7 +41,8 @@ const SessionManagerPage = () => {
 
   const loadConfig = async () => {
     try {
-      const configStr = await window.api.storage.get('auto_session_config')
+      ensureApiAvailable()
+      const configStr = await window.api!.storage.get('auto_session_config')
       if (configStr) {
         let config: any
         if (typeof configStr === 'string') {
@@ -62,7 +70,8 @@ const SessionManagerPage = () => {
       const mappedSessions = await Promise.all(
         allSessions.map(async (session) => {
           // Get session details from cloud database
-          const result = await window.api.cloudDatabase.query(
+          ensureApiAvailable()
+          const result = await window.api!.cloudDatabase.query(
             'SELECT * FROM sessions WHERE id = $1',
             [session.id]
           )
@@ -71,6 +80,7 @@ const SessionManagerPage = () => {
             const dbSession = result.rows[0]
             return {
               ...session,
+              status: dbSession.status || 'pending',
               total_questions: dbSession.total_questions,
               completed_questions: dbSession.completed_questions || 0,
               correct_answers: dbSession.correct_answers || 0
@@ -79,6 +89,7 @@ const SessionManagerPage = () => {
 
           return {
             ...session,
+            status: 'pending' as const,
             total_questions: session.question_ids.length,
             completed_questions: 0,
             correct_answers: 0
@@ -90,7 +101,7 @@ const SessionManagerPage = () => {
 
       // Đếm số session pending
       const pendingCount = mappedSessions.filter(
-        (s) => s.status === 'pending' || s.status === 'active'
+        (s) => (s as any).status === 'pending' || (s as any).status === 'active'
       ).length
       setPendingSessionCount(pendingCount)
       console.log('[SessionManager] 📊 Pending sessions:', {
@@ -117,8 +128,9 @@ const SessionManagerPage = () => {
       }
 
       // Lấy 5 vocabulary items có mastery_score thấp nhất
+      ensureApiAvailable()
       console.log('[SessionManager] 🔍 Fetching vocabulary items...')
-      const vocabResult = await window.api.cloudDatabase.query(
+      const vocabResult = await window.api!.cloudDatabase.query(
         `
         SELECT v.id, v.content, v.item_type
         FROM vocabulary_item v
@@ -135,7 +147,7 @@ const SessionManagerPage = () => {
 
       // Lấy 5 grammar items có mastery_score thấp nhất
       console.log('[SessionManager] 🔍 Fetching grammar items...')
-      const grammarResult = await window.api.cloudDatabase.query(
+      const grammarResult = await window.api!.cloudDatabase.query(
         `
         SELECT g.id, g.title, g.item_type
         FROM grammar_item g
@@ -172,7 +184,7 @@ const SessionManagerPage = () => {
 
       // 3. Gọi AI để tạo questions
       console.log('[SessionManager] 🔑 Getting Gemini API keys...')
-      const apiKeysStr = await window.api.storage.get('gemini_api_keys')
+      const apiKeysStr = await window.api!.storage.get('gemini_api_keys')
       console.log('[SessionManager] 🔍 API keys raw value:', apiKeysStr)
       console.log('[SessionManager] 🔍 API keys type:', typeof apiKeysStr)
       console.log('[SessionManager] 🔍 API keys length:', apiKeysStr?.length)
@@ -659,7 +671,8 @@ Generate NOW with diverse question types. Return ONLY valid JSON, no explanation
     }
 
     try {
-      await window.api.cloudDatabase.query('DELETE FROM sessions WHERE id = $1', [sessionId])
+      ensureApiAvailable()
+      await window.api!.cloudDatabase.query('DELETE FROM sessions WHERE id = $1', [sessionId])
       await loadSessions()
     } catch (error) {
       console.error('[SessionManager] Error deleting session:', error)

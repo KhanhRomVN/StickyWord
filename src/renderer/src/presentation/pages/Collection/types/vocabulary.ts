@@ -10,6 +10,7 @@ export interface vocabulary_item {
   tags?: string[]
   metadata?: Record<string, any>
   created_at: string
+  updated_at?: string
 }
 
 // === DEFINITIONS & EXAMPLES ===

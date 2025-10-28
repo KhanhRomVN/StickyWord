@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { sentence_puzzle_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { CheckCircle, XCircle, Lightbulb, RotateCcw } from 'lucide-react'
+import { CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 
 interface SentencePuzzleViewProps {
   question: sentence_puzzle_question
