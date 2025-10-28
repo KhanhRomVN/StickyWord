@@ -5,7 +5,6 @@ import CustomBadge from '../../../../components/common/CustomBadge'
 import CustomInput from '../../../../components/common/CustomInput'
 import CustomButton from '../../../../components/common/CustomButton'
 import { AutoSessionConfig } from '../../Dashboard/services/AutoSessionService'
-import SessionPopup from '../../Dashboard/components/SessionPopup'
 import { Session } from '../../SessionPopup/types'
 
 interface ExtendedSessionConfig extends AutoSessionConfig {
@@ -368,9 +367,6 @@ const SessionSection = () => {
           min="5"
           max="50"
         />
-        <p className="text-xs text-text-secondary mt-2">
-          Mỗi session sẽ có {config.question_count} câu hỏi ngẫu nhiên (5-50 câu)
-        </p>
       </div>
 
       <div className="bg-card-background rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5">
@@ -517,15 +513,6 @@ const SessionSection = () => {
           {isSaving ? 'Đang lưu...' : 'Lưu cấu hình'}
         </CustomButton>
       </div>
-
-      {/* Test Session Popup */}
-      {showTestPopup && testSession && (
-        <SessionPopup
-          session={testSession}
-          onStart={handleStartTestSession}
-          onClose={handleCloseTestPopup}
-        />
-      )}
     </div>
   )
 }

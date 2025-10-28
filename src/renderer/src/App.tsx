@@ -9,7 +9,7 @@ import {
   getAutoSessionService,
   destroyAutoSessionService,
   AutoSessionConfig
-} from './presentation/pages/Dashboard/services/AutoSessionService'
+} from './services/AutoSessionService'
 
 function App() {
   const router = createHashRouter(routes)

@@ -5,8 +5,8 @@ import CollectionPage from '../pages/Collection'
 import NotFoundPage from '../pages/Other/NotFoundPage'
 import SettingPage from '../pages/Setting'
 import SessionPopupPage from '../pages/SessionPopup'
-import QuestionPage from '../pages/Question'
 import SessionPage from '../pages/Session'
+import SessionManagerPage from '../pages/SessionManager'
 
 export const routes: RouteObject[] = [
   {
@@ -37,11 +37,6 @@ export const routes: RouteObject[] = [
           </div>
         )
       },
-      // Question Routes
-      {
-        path: 'questions',
-        element: <QuestionPage />
-      },
       // Settings Routes
       {
         path: 'settings',
@@ -51,6 +46,10 @@ export const routes: RouteObject[] = [
       {
         path: 'session',
         element: <SessionPage />
+      },
+      {
+        path: '/session-manager',
+        element: <SessionManagerPage />
       }
     ]
   },

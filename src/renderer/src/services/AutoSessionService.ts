@@ -1,6 +1,6 @@
-import { Session } from '../types'
-import { Question } from '../../Question/types'
-import { createCreateCollectionService } from '../../Collection/services/CreateCollectionService'
+import { Session } from '../presentation/pages/Session/types'
+import { Question } from '../presentation/pages/Question/types'
+import { createCreateCollectionService } from '../presentation/pages/Collection/services/CreateCollectionService'
 
 export interface AutoSessionConfig {
   enabled: boolean
@@ -93,25 +93,20 @@ export class AutoSessionService {
 
       console.log('[AutoSessionService] ✅ Generated questions:', questions.length)
 
-      const session: Session = {
-        id: `session_${Date.now()}`,
-        question_ids: questions.map((q) => q.id),
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + this.sessionExpiryHours * 60 * 60 * 1000).toISOString()
-      }
+      // 🔥 Lưu session vào cloud database
+      console.log('[AutoSessionService] 💾 Saving session to cloud database...')
+      const session = await sessionService.createSession(questions, this.sessionExpiryHours)
 
-      console.log('[AutoSessionService] 💾 Saving session...', {
+      console.log('[AutoSessionService] ✅ Session saved:', {
         session_id: session.id,
         question_count: questions.length,
         expires_at: new Date(session.expires_at).toLocaleString('vi-VN')
       })
 
-      await this.saveSession(session)
-      await this.saveQuestionsForSession(session.id, questions)
-
       // Hiển thị popup window nếu behavior là 'surprise'
-      const config = JSON.parse(localStorage.getItem('auto_session_config') || '{}')
+      const configStr = await window.api.storage.get('auto_session_config')
+      const config = configStr || {}
+
       if (config.popup_behavior === 'surprise') {
         console.log('[AutoSessionService] 🚀 Showing surprise popup window...')
         await window.api.popup.showSession(session)
@@ -130,7 +125,10 @@ export class AutoSessionService {
     }
   }
 
-  private async generateQuestionsWithAI(): Promise<Question[]> {
+  private async generateQuestionsWithAI(
+    vocabularyIds: string[],
+    grammarIds: string[]
+  ): Promise<Question[]> {
     try {
       console.log('[AutoSessionService] 🤖 Fetching API keys...')
       const apiKeysStr = localStorage.getItem('gemini_api_keys')
@@ -184,10 +182,9 @@ export class AutoSessionService {
           ...q,
           id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
           difficulty_level: q.difficulty_level || 5,
-          vocabulary_item_ids: q.vocabulary_item_ids || [],
-          grammar_points: q.grammar_points || []
+          vocabulary_item_ids: vocabularyIds.slice(0, 2),
+          grammar_points: grammarIds.slice(0, 2)
         }
 
         console.log(`[AutoSessionService] 📋 Question ${index + 1}:`, {
@@ -268,7 +265,7 @@ export class AutoSessionService {
     },
     {
       "question_type": "translate",
-      "source_sentence": "Tôi thường đi bộ đến trường mỗi ngày.",
+      "source_sentence": "Tôi thường đi bộ đến trường mỗi day.",
       "source_language": "vi",
       "correct_translation": "I usually walk to school every day.",
       "alternative_translations": ["I walk to school every day.", "I often walk to school daily."],
@@ -280,45 +277,6 @@ export class AutoSessionService {
 \`\`\`
 
 Generate NOW with diverse topics and question types. Return ONLY valid JSON, no explanation.`
-  }
-
-  private async getPendingSessions(): Promise<Session[]> {
-    try {
-      const sessionsStr = localStorage.getItem('practice_sessions')
-      if (!sessionsStr) return []
-
-      const sessions: Session[] = JSON.parse(sessionsStr)
-      return sessions.filter((s) => s.status === 'pending')
-    } catch (error) {
-      console.error('[AutoSessionService] Error getting pending sessions:', error)
-      return []
-    }
-  }
-
-  private async saveSession(session: Session): Promise<void> {
-    try {
-      const sessionsStr = localStorage.getItem('practice_sessions')
-      const sessions: Session[] = sessionsStr ? JSON.parse(sessionsStr) : []
-
-      sessions.push(session)
-      localStorage.setItem('practice_sessions', JSON.stringify(sessions))
-    } catch (error) {
-      console.error('[AutoSessionService] Error saving session:', error)
-      throw error
-    }
-  }
-
-  private async saveQuestionsForSession(sessionId: string, questions: Question[]): Promise<void> {
-    try {
-      const questionsKey = `session_questions_${sessionId}`
-      localStorage.setItem(questionsKey, JSON.stringify(questions))
-      console.log(
-        `[AutoSessionService] Saved ${questions.length} questions for session ${sessionId}`
-      )
-    } catch (error) {
-      console.error('[AutoSessionService] Error saving questions:', error)
-      throw error
-    }
   }
 }
 

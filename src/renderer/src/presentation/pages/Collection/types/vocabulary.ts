@@ -3,14 +3,13 @@ export interface vocabulary_item {
   id: string
   item_type: 'word' | 'phrase'
   content: string
-  pronunciation?: string // IPA notation (e.g., /ˌpɜːrsəˈvɪrəns/)
+  pronunciation?: string
   difficulty_level?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
   frequency_rank?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
-  category?: string // business, daily, travel, academic
-  tags?: string[] // ["formal", "informal", "british", "american"]
+  category?: string
+  tags?: string[]
   metadata?: Record<string, any>
   created_at: string
-  updated_at: string
 }
 
 // === DEFINITIONS & EXAMPLES ===

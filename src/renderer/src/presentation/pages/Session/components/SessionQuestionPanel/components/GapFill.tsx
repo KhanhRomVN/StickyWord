@@ -91,21 +91,8 @@ const GapFill = ({ question, userAnswer, setUserAnswer, isSubmitted, onSubmit }:
 
   return (
     <div className="space-y-6">
-      {/* Question Type Badge */}
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 rounded-lg text-sm font-medium">
-        📝 Điền từ
-      </div>
-
       {/* Instruction */}
-      <div className="bg-card-background p-4 rounded-lg border border-border-default">
-        <h3 className="font-semibold text-text-primary mb-2">Yêu cầu:</h3>
-        <p className="text-text-secondary">Điền từ thích hợp vào chỗ trống trong câu.</p>
-        {question.context && (
-          <p className="text-sm text-text-secondary mt-2">
-            <span className="font-medium">Ngữ cảnh:</span> {question.context}
-          </p>
-        )}
-      </div>
+      <p className="text-text-primary text-lg">{question.context}</p>
 
       {/* Sentence with Gaps */}
       <div className="bg-blue-50 dark:bg-blue-900/10 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -127,17 +114,6 @@ const GapFill = ({ question, userAnswer, setUserAnswer, isSubmitted, onSubmit }:
                 {word}
               </button>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Hint */}
-      {!isSubmitted && question.hint && (
-        <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <Lightbulb className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Gợi ý:</p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">{question.hint}</p>
           </div>
         </div>
       )}

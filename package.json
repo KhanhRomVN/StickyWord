@@ -104,7 +104,7 @@
     "react-modern-drawer": "^1.4.0",
     "react-query": "^3.39.3",
     "react-router-dom": "^6.30.0",
-    "recharts": "^2.15.3",
+    "recharts": "^2.15.4",
     "sqlite3": "^5.1.7",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^3.3.6",

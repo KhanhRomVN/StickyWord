@@ -43,7 +43,6 @@ const SentencePuzzleView = ({
   const isCorrect =
     constructedSentence.trim().toLowerCase() === question.correct_sentence.trim().toLowerCase()
 
-  // Update userAnswer when selectedItems change
   const handleCheckAnswer = () => {
     setUserAnswer(constructedSentence)
     onSubmit()
@@ -51,23 +50,8 @@ const SentencePuzzleView = ({
 
   return (
     <div className="space-y-6">
-      {/* Question Type Badge */}
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 rounded-lg text-sm font-medium">
-        🧩 Xếp câu
-      </div>
-
       {/* Instruction */}
-      <div className="bg-card-background p-4 rounded-lg border border-border-default">
-        <h3 className="font-semibold text-text-primary mb-2">Yêu cầu:</h3>
-        <p className="text-text-secondary">
-          Sắp xếp các từ/cụm từ sau để tạo thành câu hoàn chỉnh.
-        </p>
-        {question.context && (
-          <p className="text-sm text-text-secondary mt-2">
-            <span className="font-medium">Ngữ cảnh:</span> {question.context}
-          </p>
-        )}
-      </div>
+      <p className="text-text-primary text-lg">{question.context}</p>
 
       {/* Selected Items Area */}
       {!isSubmitted && (
@@ -124,17 +108,6 @@ const SentencePuzzleView = ({
         </div>
       )}
 
-      {/* Hint */}
-      {!isSubmitted && question.hint && (
-        <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <Lightbulb className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Gợi ý:</p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">{question.hint}</p>
-          </div>
-        </div>
-      )}
-
       {/* Result */}
       {isSubmitted && (
         <div
@@ -178,12 +151,11 @@ const SentencePuzzleView = ({
       {!isSubmitted && (
         <CustomButton
           variant="primary"
-          size="md"
+          size="sm"
           onClick={handleCheckAnswer}
           disabled={selectedItems.length === 0}
-          className="w-full"
         >
-          Kiểm tra đáp án
+          Check Answer
         </CustomButton>
       )}
     </div>

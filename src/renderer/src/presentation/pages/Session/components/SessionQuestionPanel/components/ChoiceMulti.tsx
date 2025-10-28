@@ -46,28 +46,8 @@ const ChoiceMulti = ({
 
   return (
     <div className="space-y-6">
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg text-sm font-medium">
-        ☑️ Trắc nghiệm nhiều đáp án (Từ vựng)
-      </div>
-
-      <div className="bg-card-background p-4 rounded-lg border border-border-default">
-        <h3 className="font-semibold text-text-primary mb-2">Câu hỏi:</h3>
-        <p className="text-text-secondary text-lg">{question.question_text}</p>
-        {question.context && (
-          <p className="text-sm text-text-secondary mt-2">
-            <span className="font-medium">Ngữ cảnh:</span> {question.context}
-          </p>
-        )}
-        <p className="text-sm text-orange-600 dark:text-orange-400 mt-2">
-          {question.min_selections && question.max_selections
-            ? `Chọn từ ${question.min_selections} đến ${question.max_selections} đáp án`
-            : question.min_selections
-              ? `Chọn ít nhất ${question.min_selections} đáp án`
-              : question.max_selections
-                ? `Chọn tối đa ${question.max_selections} đáp án`
-                : 'Chọn tất cả đáp án đúng'}
-        </p>
-      </div>
+      {/* Instruction */}
+      <p className="text-text-primary text-lg">{question.context}</p>
 
       <div className="space-y-3">
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -120,16 +100,6 @@ const ChoiceMulti = ({
           )
         })}
       </div>
-
-      {!isSubmitted && question.hint && (
-        <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <Lightbulb className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Gợi ý:</p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">{question.hint}</p>
-          </div>
-        </div>
-      )}
 
       {isSubmitted && (
         <div

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { true_false_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { CheckCircle, XCircle, Lightbulb } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 interface TrueFalseProps {
   question: true_false_question
@@ -23,55 +23,40 @@ const TrueFalse = ({
   const handleAnswerSelect = (answer: boolean) => {
     if (isSubmitted) return
     setSelectedAnswer(answer)
-    setUserAnswer(answer.toString())
+    setUserAnswer(String(answer))
   }
 
   const isCorrect = selectedAnswer === question.correct_answer
 
   return (
     <div className="space-y-6">
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm font-medium">
-        ✓✗ Đúng/Sai
-      </div>
+      {/* Context/Instruction */}
+      {question.context && <p className="text-text-primary text-lg">{question.context}</p>}
 
-      <div className="bg-card-background p-4 rounded-lg border border-border-default">
-        <h3 className="font-semibold text-text-primary mb-2">Câu hỏi:</h3>
-        <p className="text-text-secondary text-lg">{question.statement}</p>
-        {question.context && (
-          <p className="text-sm text-text-secondary mt-2">
-            <span className="font-medium">Ngữ cảnh:</span> {question.context}
-          </p>
-        )}
-      </div>
-
+      {/* Answer Options */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Chọn đáp án:
-        </label>
-
         {/* True Button */}
         <button
           onClick={() => handleAnswerSelect(true)}
           disabled={isSubmitted}
-          className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+          className={`w-full rounded-lg border-2 border-l-4 transition-all p-3 ${
             isSubmitted && question.correct_answer === true
-              ? 'border-green-500 bg-green-50 dark:bg-green-900/10'
-              : isSubmitted && selectedAnswer === true && question.correct_answer === false
-                ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
+              ? 'border-green-500 border-l-green-500 bg-gradient-to-r from-transparent to-green-100/50 dark:to-green-900/20'
+              : isSubmitted && selectedAnswer === true && question.correct_answer !== true
+                ? 'border-red-500 border-l-red-500 bg-gradient-to-r from-transparent to-red-100/50 dark:to-red-900/20'
                 : selectedAnswer === true
-                  ? 'border-primary bg-blue-50 dark:bg-blue-900/10'
+                  ? 'border-primary border-l-primary bg-gradient-to-r from-transparent to-blue-100/50 dark:to-blue-900/20'
                   : 'border-border-default hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800'
           } ${isSubmitted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
-              <span className="font-semibold text-2xl text-green-600 dark:text-green-400">✓</span>
-              <span className="text-text-primary font-medium">Đúng (True)</span>
+              <span className="text-sm font-semibold text-text-primary">Đúng (True)</span>
             </div>
             {isSubmitted && question.correct_answer === true && (
               <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
             )}
-            {isSubmitted && selectedAnswer === true && question.correct_answer === false && (
+            {isSubmitted && selectedAnswer === true && question.correct_answer !== true && (
               <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
             )}
           </div>
@@ -81,41 +66,31 @@ const TrueFalse = ({
         <button
           onClick={() => handleAnswerSelect(false)}
           disabled={isSubmitted}
-          className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+          className={`w-full rounded-lg border-2 border-l-4 transition-all p-3 ${
             isSubmitted && question.correct_answer === false
-              ? 'border-green-500 bg-green-50 dark:bg-green-900/10'
-              : isSubmitted && selectedAnswer === false && question.correct_answer === true
-                ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
+              ? 'border-green-500 border-l-green-500 bg-gradient-to-r from-transparent to-green-100/50 dark:to-green-900/20'
+              : isSubmitted && selectedAnswer === false && question.correct_answer !== false
+                ? 'border-red-500 border-l-red-500 bg-gradient-to-r from-transparent to-red-100/50 dark:to-red-900/20'
                 : selectedAnswer === false
-                  ? 'border-primary bg-blue-50 dark:bg-blue-900/10'
+                  ? 'border-primary border-l-primary bg-gradient-to-r from-transparent to-blue-100/50 dark:to-blue-900/20'
                   : 'border-border-default hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800'
           } ${isSubmitted ? 'cursor-not-allowed' : 'cursor-pointer'}`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
-              <span className="font-semibold text-2xl text-red-600 dark:text-red-400">✗</span>
-              <span className="text-text-primary font-medium">Sai (False)</span>
+              <span className="text-sm font-semibold text-text-primary">Sai (False)</span>
             </div>
             {isSubmitted && question.correct_answer === false && (
               <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
             )}
-            {isSubmitted && selectedAnswer === false && question.correct_answer === true && (
+            {isSubmitted && selectedAnswer === false && question.correct_answer !== false && (
               <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
             )}
           </div>
         </button>
       </div>
 
-      {!isSubmitted && question.hint && (
-        <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <Lightbulb className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Gợi ý:</p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">{question.hint}</p>
-          </div>
-        </div>
-      )}
-
+      {/* Result */}
       {isSubmitted && (
         <div
           className={`p-4 rounded-lg border ${
@@ -138,21 +113,6 @@ const TrueFalse = ({
             )}
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="text-text-secondary">
-              <span className="font-medium">Đáp án đúng:</span>{' '}
-              {question.correct_answer ? 'Đúng (True)' : 'Sai (False)'}
-            </div>
-            <div className="text-text-secondary">
-              <span className="font-medium">Đáp án bạn chọn:</span>{' '}
-              {selectedAnswer !== null
-                ? selectedAnswer
-                  ? 'Đúng (True)'
-                  : 'Sai (False)'
-                : '(không có)'}
-            </div>
-          </div>
-
           {question.explanation && (
             <div className="mt-3 pt-3 border-t border-current/20">
               <p className="text-sm font-medium mb-1">Giải thích:</p>
@@ -162,15 +122,15 @@ const TrueFalse = ({
         </div>
       )}
 
+      {/* Submit Button */}
       {!isSubmitted && (
         <CustomButton
           variant="primary"
-          size="md"
+          size="sm"
           onClick={onSubmit}
           disabled={selectedAnswer === null}
-          className="w-full"
         >
-          Kiểm tra đáp án
+          Check Answer
         </CustomButton>
       )}
     </div>

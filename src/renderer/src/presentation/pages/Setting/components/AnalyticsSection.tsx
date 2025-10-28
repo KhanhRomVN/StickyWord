@@ -138,7 +138,7 @@ const AnalyticsSection = () => {
               </div>
               <div>
                 <p className="font-semibold text-text-primary">Theo dõi thời gian</p>
-                <p className="text-sm text-text-secondary">Ghi lại thời gian học mỗi ngày</p>
+                <p className="text-sm text-text-secondary">Ghi lại thời gian học mỗi day</p>
               </div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">

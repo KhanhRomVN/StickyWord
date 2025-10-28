@@ -59,28 +59,13 @@ const Matching = ({
 
   return (
     <div className="space-y-6">
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 rounded-lg text-sm font-medium">
-        🔗 Nối từ vựng
-      </div>
-
-      <div className="bg-card-background p-4 rounded-lg border border-border-default">
-        <h3 className="font-semibold text-text-primary mb-2">Yêu cầu:</h3>
-        <p className="text-text-secondary">{question.instruction}</p>
-        <p className="text-sm text-violet-600 dark:text-violet-400 mt-2">
-          <span className="font-medium">Loại nối:</span> {getMatchTypeLabel(question.match_type)}
-        </p>
-        {!isSubmitted && (
-          <p className="text-sm text-text-secondary mt-2">
-            💡 Nhấp vào mục bên trái, sau đó nhấp vào mục tương ứng bên phải
-          </p>
-        )}
-      </div>
+      <p className="text-text-primary text-lg">{question.instruction}</p>
 
       <div className="grid grid-cols-2 gap-4">
         {/* Left Column */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Cột A
+            Column A
           </label>
           {question.left_items.map((item) => {
             const isSelected = selectedLeft === item.id
@@ -125,7 +110,7 @@ const Matching = ({
         {/* Right Column */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Cột B
+            Column B
           </label>
           {question.right_items.map((item) => {
             const isMatchedToThis = Object.values(matches).includes(item.id)
@@ -147,16 +132,6 @@ const Matching = ({
           })}
         </div>
       </div>
-
-      {!isSubmitted && question.hint && (
-        <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <Lightbulb className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Gợi ý:</p>
-            <p className="text-sm text-yellow-700 dark:text-yellow-400">{question.hint}</p>
-          </div>
-        </div>
-      )}
 
       {isSubmitted && (
         <div
@@ -198,15 +173,16 @@ const Matching = ({
       )}
 
       {!isSubmitted && (
-        <CustomButton
-          variant="primary"
-          size="md"
-          onClick={onSubmit}
-          disabled={Object.keys(matches).length !== question.left_items.length}
-          className="w-full"
-        >
-          Kiểm tra đáp án
-        </CustomButton>
+        <div className="flex justify-end">
+          <CustomButton
+            variant="primary"
+            size="sm"
+            onClick={onSubmit}
+            disabled={Object.keys(matches).length !== question.left_items.length}
+          >
+            Check Answer
+          </CustomButton>
+        </div>
       )}
     </div>
   )

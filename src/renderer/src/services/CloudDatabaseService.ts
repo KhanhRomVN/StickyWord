@@ -61,8 +61,8 @@ export class CloudDatabaseService {
     INSERT INTO vocabulary_item (
       id, item_type, content, pronunciation,
       difficulty_level, frequency_rank, category, tags, metadata,
-      created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
   `
 
     const vocabParams = [
@@ -75,8 +75,7 @@ export class CloudDatabaseService {
       item.category || null,
       JSON.stringify(item.tags || []),
       JSON.stringify(item.metadata || {}),
-      item.created_at,
-      item.updated_at
+      item.created_at
     ]
 
     const vocabResult = await window.api.cloudDatabase.query(vocabQuery, vocabParams)
@@ -150,8 +149,8 @@ export class CloudDatabaseService {
     INSERT INTO grammar_item (
       id, item_type, title,
       difficulty_level, frequency_rank, category, tags, metadata,
-      created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
   `
 
     const grammarParams = [
@@ -163,8 +162,7 @@ export class CloudDatabaseService {
       item.category || null,
       JSON.stringify(item.tags || []),
       JSON.stringify(item.metadata || {}),
-      item.created_at,
-      item.updated_at
+      item.created_at
     ]
 
     const grammarResult = await window.api.cloudDatabase.query(grammarQuery, grammarParams)
@@ -350,9 +348,8 @@ export class CloudDatabaseService {
         frequency_rank = $4,
         category = $5,
         tags = $6,
-        metadata = $7,
-        updated_at = $8
-      WHERE id = $9
+        metadata = $7
+      WHERE id = $8
     `
 
     const params = [
@@ -363,7 +360,6 @@ export class CloudDatabaseService {
       item.category || null,
       JSON.stringify(item.tags || []),
       JSON.stringify(item.metadata || {}),
-      new Date().toISOString(),
       item.id
     ]
 
@@ -384,9 +380,8 @@ export class CloudDatabaseService {
         frequency_rank = $3,
         category = $4,
         tags = $5,
-        metadata = $6,
-        updated_at = $7
-      WHERE id = $8
+        metadata = $6
+      WHERE id = $7
     `
 
     const params = [
@@ -396,7 +391,6 @@ export class CloudDatabaseService {
       item.category || null,
       JSON.stringify(item.tags || []),
       JSON.stringify(item.metadata || {}),
-      new Date().toISOString(),
       item.id
     ]
 

@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { lexical_fix_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
 import CustomInput from '../../../../../../components/common/CustomInput'
-import { CheckCircle, XCircle, Lightbulb } from 'lucide-react'
+import { CheckCircle, XCircle } from 'lucide-react'
 
 interface LexicalFixViewProps {
   question: lexical_fix_question
@@ -18,34 +19,50 @@ const LexicalFixView = ({
   isSubmitted,
   onSubmit
 }: LexicalFixViewProps) => {
+  const [selectedWord, setSelectedWord] = useState<string>('')
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1)
+
+  // Tách câu thành mảng các từ
+  const words = question.incorrect_sentence.split(' ')
+
+  const handleWordClick = (word: string, index: number) => {
+    if (isSubmitted) return
+    setSelectedWord(word)
+    setSelectedIndex(index)
+  }
+
   const isCorrect = userAnswer.trim().toLowerCase() === question.correct_word.toLowerCase()
 
   return (
     <div className="space-y-6">
-      {/* Question Type Badge */}
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-medium">
-        🔍 Sửa lỗi từ vựng
-      </div>
-
       {/* Instruction */}
-      <div className="bg-card-background p-4 rounded-lg border border-border-default">
-        <h3 className="font-semibold text-text-primary mb-2">Yêu cầu:</h3>
-        <p className="text-text-secondary">Tìm từ sai trong câu và sửa lại cho đúng.</p>
-      </div>
+      <p className="text-text-secondary">{question.context}</p>
 
-      {/* Incorrect Sentence */}
+      {/* Incorrect Sentence - Clickable Words */}
       <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-200 dark:border-red-800">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Câu có lỗi:
-        </label>
-        <p className="text-lg text-text-primary font-medium">{question.incorrect_sentence}</p>
-        <p className="text-sm text-red-600 dark:text-red-400 mt-2">
-          Từ sai: <span className="font-semibold">{question.incorrect_word}</span>
-        </p>
+        <div className="flex flex-wrap leading-relaxed">
+          {words.map((word, index) => (
+            <>
+              <button
+                key={index}
+                onClick={() => handleWordClick(word, index)}
+                disabled={isSubmitted}
+                className={`rounded transition-all ${
+                  selectedIndex === index && !isSubmitted
+                    ? 'bg-blue-200 dark:bg-blue-700 text-blue-900 dark:text-blue-100 font-semibold px-2 py-1'
+                    : 'hover:bg-red-100 dark:hover:bg-red-800/50 hover:px-2 hover:py-1'
+                } ${isSubmitted ? 'cursor-not-allowed' : 'cursor-pointer'} text-base text-text-primary font-medium`}
+              >
+                {word}
+              </button>
+              {index < words.length - 1 && <span className="inline-block w-1">&nbsp;</span>}
+            </>
+          ))}
+        </div>
       </div>
 
       {/* User Answer Input */}
-      {!isSubmitted && (
+      {!isSubmitted && selectedWord && (
         <div>
           <CustomInput
             label="Từ đúng:"
@@ -55,15 +72,6 @@ const LexicalFixView = ({
             variant="primary"
             size="md"
           />
-          {question.hint && (
-            <div className="flex items-start gap-2 mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
-              <Lightbulb className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Gợi ý:</p>
-                <p className="text-sm text-yellow-700 dark:text-yellow-400">{question.hint}</p>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -89,24 +97,33 @@ const LexicalFixView = ({
               </>
             )}
           </div>
-
           <div className="space-y-2 text-sm">
+            <p className="text-text-secondary">
+              Từ bạn chọn: <span className="font-medium">{selectedWord || '(không chọn)'}</span>
+            </p>
             <p className="text-text-secondary">
               Câu trả lời của bạn: <span className="font-medium">{userAnswer || '(trống)'}</span>
             </p>
             {!isCorrect && (
-              <p className="text-text-secondary">
-                Đáp án đúng:{' '}
-                <span className="font-medium text-green-600 dark:text-green-400">
-                  {question.correct_word}
-                </span>
-              </p>
+              <>
+                <p className="text-text-secondary">
+                  Từ sai:{' '}
+                  <span className="font-medium text-red-600 dark:text-red-400">
+                    {question.incorrect_word}
+                  </span>
+                </p>
+                <p className="text-text-secondary">
+                  Đáp án đúng:{' '}
+                  <span className="font-medium text-green-600 dark:text-green-400">
+                    {question.correct_word}
+                  </span>
+                </p>
+              </>
             )}
             <p className="text-text-secondary">
               Câu đúng: <span className="font-medium">{question.correct_sentence}</span>
             </p>
           </div>
-
           {question.explanation && (
             <div className="mt-3 pt-3 border-t border-current/20">
               <p className="text-sm font-medium mb-1">Giải thích:</p>
@@ -118,15 +135,16 @@ const LexicalFixView = ({
 
       {/* Submit Button */}
       {!isSubmitted && (
-        <CustomButton
-          variant="primary"
-          size="md"
-          onClick={onSubmit}
-          disabled={!userAnswer.trim()}
-          className="w-full"
-        >
-          Kiểm tra đáp án
-        </CustomButton>
+        <div className="flex justify-end">
+          <CustomButton
+            variant="primary"
+            size="sm"
+            onClick={onSubmit}
+            disabled={!userAnswer.trim() || !selectedWord}
+          >
+            Check Answer
+          </CustomButton>
+        </div>
       )}
     </div>
   )

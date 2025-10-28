@@ -2,18 +2,7 @@ import { useState } from 'react'
 import { cn } from '../../shared/lib/utils'
 import { Button } from '../ui/button'
 import { motion } from 'framer-motion'
-import {
-  BarChart3,
-  BookOpen,
-  ChevronDown,
-  Database,
-  Home,
-  Settings,
-  FileText,
-  TrendingUp,
-  Tag,
-  HelpCircle
-} from 'lucide-react'
+import { BookOpen, ChevronDown, Database, Home, Settings, FileText, Tag, Clock } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 interface MainSidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
@@ -39,6 +28,7 @@ const menuItems: MenuItem[] = [
     href: '/',
     description: 'Tổng quan & thống kê'
   },
+  { icon: Clock, label: 'Session', href: '/session-manager', description: 'Tổng quan & thống kê' },
   {
     icon: BookOpen,
     label: 'Collection',
@@ -60,18 +50,6 @@ const menuItems: MenuItem[] = [
         icon: Tag
       }
     ]
-  },
-  {
-    icon: BarChart3,
-    label: 'Analytics',
-    href: '/analytics',
-    description: 'Phân tích dữ liệu'
-  },
-  {
-    icon: HelpCircle,
-    label: 'Question',
-    href: '/questions',
-    description: 'Quản lý câu hỏi'
   },
   {
     icon: Settings,
