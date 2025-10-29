@@ -17,10 +17,7 @@ interface Session {
   id: string
   title?: string
   question_ids: string[]
-  status: 'pending' | 'active' | 'completed' | 'expired'
-  total_questions: number
-  completed_questions: number
-  correct_answers: number
+  status: 'pending' | 'completed'
   created_at: string
   expires_at?: string
   difficulty_level?: number
@@ -63,46 +60,13 @@ const SessionManagerPage = () => {
   const loadSessions = async () => {
     try {
       setIsLoading(true)
-      const sessionService = getSessionService()
-      const allSessions = await sessionService.getSessions()
+      const { getSessionStorageService } = await import('../../../services/SessionStorageService')
+      const storageService = getSessionStorageService()
+      const allSessions = await storageService.getAllSessions()
 
-      // Map sessions to include additional fields
-      const mappedSessions = await Promise.all(
-        allSessions.map(async (session) => {
-          // Get session details from cloud database
-          ensureApiAvailable()
-          const result = await window.api!.cloudDatabase.query(
-            'SELECT * FROM sessions WHERE id = $1',
-            [session.id]
-          )
+      setSessions(allSessions)
 
-          if (result.success && result.rows.length > 0) {
-            const dbSession = result.rows[0]
-            return {
-              ...session,
-              status: dbSession.status || 'pending',
-              total_questions: dbSession.total_questions,
-              completed_questions: dbSession.completed_questions || 0,
-              correct_answers: dbSession.correct_answers || 0
-            }
-          }
-
-          return {
-            ...session,
-            status: 'pending' as const,
-            total_questions: session.question_ids.length,
-            completed_questions: 0,
-            correct_answers: 0
-          }
-        })
-      )
-
-      setSessions(mappedSessions as Session[])
-
-      // Đếm số session pending
-      const pendingCount = mappedSessions.filter(
-        (s) => (s as any).status === 'pending' || (s as any).status === 'active'
-      ).length
+      const pendingCount = allSessions.filter((s) => s.status === 'pending').length
       setPendingSessionCount(pendingCount)
       console.log('[SessionManager] 📊 Pending sessions:', {
         count: pendingCount,
@@ -355,10 +319,8 @@ const SessionManagerPage = () => {
       // 4. Xử lý questions (đã validate ở trên)
       console.log('[SessionManager] 🔧 Processing questions...')
       const questions = parsed.questions.map((q: any, index: number) => {
-        // Generate UUID cho mỗi question
         const questionId = `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${index}`
 
-        // Gán các trường system-generated
         const systemFields = {
           id: questionId,
           vocabulary_item_ids: vocabularyIds.length > 0 ? vocabularyIds : [],
@@ -367,14 +329,11 @@ const SessionManagerPage = () => {
         }
 
         console.log(`[SessionManager] 📝 Processing question ${index + 1}:`, {
-          questionId,
           question_type: q.question_type,
           has_vocabulary: vocabularyIds.length > 0,
           has_grammar: grammarIds.length > 0
         })
 
-        // Merge: AI data + system fields
-        // AI PHẢI có: question_type, context, difficulty_level và các trường specific
         const processedQuestion = {
           ...q,
           ...systemFields

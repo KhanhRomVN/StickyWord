@@ -2,7 +2,8 @@
 export interface Session {
   id: string
   title: string
-  question_ids: string[]
+  questions: Question[]
+  status: 'pending' | 'completed'
   created_at: string
   expires_at?: string
   difficulty_level: number
@@ -26,6 +27,8 @@ export interface base_question {
   vocabulary_item_ids?: string[]
   grammar_points?: string[]
   created_at: string
+  user_answer?: string
+  is_correct?: boolean
 }
 
 export interface lexical_fix_question extends base_question {
@@ -167,11 +170,3 @@ export type Question =
   | choice_multi_question
   | matching_question
   | true_false_question
-
-export interface question_answer {
-  id: string
-  question_id: string
-  user_answer: string
-  is_correct: boolean
-  created_at: string
-}

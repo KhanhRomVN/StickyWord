@@ -3,6 +3,7 @@ import { lexical_fix_question } from '../../../types'
 import CustomButton from '../../../../../../components/common/CustomButton'
 import CustomInput from '../../../../../../components/common/CustomInput'
 import { CheckCircle, XCircle } from 'lucide-react'
+import React from 'react'
 
 interface LexicalFixViewProps {
   question: lexical_fix_question
@@ -42,9 +43,8 @@ const LexicalFixView = ({
       <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-lg border border-red-200 dark:border-red-800">
         <div className="flex flex-wrap leading-relaxed">
           {words.map((word, index) => (
-            <>
+            <React.Fragment key={index}>
               <button
-                key={index}
                 onClick={() => handleWordClick(word, index)}
                 disabled={isSubmitted}
                 className={`rounded transition-all ${
@@ -56,7 +56,7 @@ const LexicalFixView = ({
                 {word}
               </button>
               {index < words.length - 1 && <span className="inline-block w-1">&nbsp;</span>}
-            </>
+            </React.Fragment>
           ))}
         </div>
       </div>

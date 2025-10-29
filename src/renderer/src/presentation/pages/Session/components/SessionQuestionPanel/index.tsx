@@ -40,14 +40,17 @@ const SessionQuestionPanel = ({
 
   // Reset khi chuyển câu hỏi
   useEffect(() => {
-    if (existingAnswer) {
+    if (question.user_answer !== undefined) {
+      setUserAnswer(question.user_answer)
+      setIsSubmitted(true)
+    } else if (existingAnswer) {
       setUserAnswer(existingAnswer.userAnswer)
       setIsSubmitted(true)
     } else {
       setUserAnswer('')
       setIsSubmitted(false)
     }
-  }, [question.id, existingAnswer])
+  }, [question.id, question.user_answer, existingAnswer])
 
   const checkAnswerCorrectness = (q: Question, answer: string): boolean => {
     if (!answer) return false

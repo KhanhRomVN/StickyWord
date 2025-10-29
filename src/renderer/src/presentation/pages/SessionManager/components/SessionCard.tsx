@@ -5,11 +5,8 @@ interface SessionCardProps {
   session: {
     id: string
     title?: string
-    question_ids: string[]
-    status: 'pending' | 'active' | 'completed' | 'expired'
-    total_questions: number
-    completed_questions: number
-    correct_answers: number
+    questions: any[]
+    status: 'pending' | 'completed'
     created_at: string
     expires_at?: string
     difficulty_level?: number
@@ -77,22 +74,6 @@ const SessionCard = ({ session, onStart, onDelete }: SessionCardProps) => {
         >
           {getStatusLabel(session.status)}
         </span>
-      </div>
-
-      {/* Progress */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between text-xs text-text-secondary mb-1">
-          <span>
-            Hoàn thành: {session.completed_questions}/{session.total_questions}
-          </span>
-          {session.completed_questions > 0 && <span>Độ chính xác: {accuracy}%</span>}
-        </div>
-        <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
-            style={{ width: `${(session.completed_questions / session.total_questions) * 100}%` }}
-          />
-        </div>
       </div>
 
       {/* Actions */}

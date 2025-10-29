@@ -148,6 +148,17 @@ async function initializeCloudDatabaseSchema() {
     if (!cloudDbPool) throw new Error('Cloud database not connected')
 
     const queries = [
+      // === SESSION TABLE ===
+      `CREATE TABLE IF NOT EXISTS sessions (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        questions JSONB NOT NULL DEFAULT '[]'::jsonb,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'completed')) DEFAULT 'pending',
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMP,
+        difficulty_level INTEGER CHECK (difficulty_level BETWEEN 1 AND 10),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      )`,
       // === VOCABULARY TABLES ===
       `CREATE TABLE IF NOT EXISTS vocabulary_item (
         id TEXT PRIMARY KEY,
@@ -257,94 +268,6 @@ async function initializeCloudDatabaseSchema() {
         question_id TEXT NOT NULL
       )`,
 
-      // === QUESTIONS TABLE ===
-      `CREATE TABLE IF NOT EXISTS questions (
-        id TEXT PRIMARY KEY,
-        question_type TEXT NOT NULL,
-        question_data JSONB NOT NULL,
-        difficulty_level INTEGER CHECK (difficulty_level BETWEEN 1 AND 10),
-        vocabulary_item_ids TEXT[],
-        grammar_item_ids TEXT[],
-        total_attempts INTEGER DEFAULT 0,
-        correct_attempts INTEGER DEFAULT 0,
-        incorrect_attempts INTEGER DEFAULT 0,
-        last_answered_at TIMESTAMP,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )`,
-
-      // === SESSIONS TABLE ===
-      `CREATE TABLE IF NOT EXISTS sessions (
-        id TEXT PRIMARY KEY,
-        question_ids TEXT[] NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'completed', 'expired')),
-        total_questions INTEGER NOT NULL,
-        completed_questions INTEGER DEFAULT 0,
-        correct_answers INTEGER DEFAULT 0,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-        started_at TIMESTAMP,
-        completed_at TIMESTAMP,
-        expires_at TIMESTAMP NOT NULL
-      )`,
-
-      // === QUESTION ANSWERS TABLE ===
-      `CREATE TABLE IF NOT EXISTS question_answers (
-        id TEXT PRIMARY KEY,
-        question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
-        session_id TEXT REFERENCES sessions(id) ON DELETE SET NULL,
-        user_answer TEXT NOT NULL,
-        is_correct BOOLEAN NOT NULL,
-        time_taken_seconds INTEGER,
-        answered_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )`,
-
-      // === AUTO DELETE TRIGGERS ===
-      // Tự động xóa questions sau 30 day
-      `CREATE OR REPLACE FUNCTION delete_old_questions()
-      RETURNS trigger AS $$
-      BEGIN
-        DELETE FROM questions WHERE created_at < NOW() - INTERVAL '30 days';
-        RETURN NULL;
-      END;
-      $$ LANGUAGE plpgsql`,
-
-      `DROP TRIGGER IF EXISTS trigger_delete_old_questions ON questions`,
-
-      `CREATE TRIGGER trigger_delete_old_questions
-      AFTER INSERT ON questions
-      EXECUTE FUNCTION delete_old_questions()`,
-
-      // Tự động xóa sessions đã hết hạn
-      `CREATE OR REPLACE FUNCTION delete_expired_sessions()
-      RETURNS trigger AS $$
-      BEGIN
-        DELETE FROM sessions WHERE expires_at < NOW() AND status IN ('pending', 'expired');
-        RETURN NULL;
-      END;
-      $$ LANGUAGE plpgsql`,
-
-      `DROP TRIGGER IF EXISTS trigger_delete_expired_sessions ON sessions`,
-
-      `CREATE TRIGGER trigger_delete_expired_sessions
-      AFTER INSERT ON sessions
-      EXECUTE FUNCTION delete_expired_sessions()`,
-
-      // Tự động cập nhật session status khi hết hạn
-      `CREATE OR REPLACE FUNCTION update_expired_sessions()
-      RETURNS trigger AS $$
-      BEGIN
-        UPDATE sessions 
-        SET status = 'expired' 
-        WHERE expires_at < NOW() AND status = 'pending';
-        RETURN NULL;
-      END;
-      $$ LANGUAGE plpgsql`,
-
-      `DROP TRIGGER IF EXISTS trigger_update_expired_sessions ON sessions`,
-
-      `CREATE TRIGGER trigger_update_expired_sessions
-      AFTER INSERT ON sessions
-      EXECUTE FUNCTION update_expired_sessions()`,
-
       // === INDEXES ===
       `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_item(item_type)`,
       `CREATE INDEX IF NOT EXISTS idx_vocab_created ON vocabulary_item(created_at DESC)`,
@@ -359,11 +282,8 @@ async function initializeCloudDatabaseSchema() {
       `CREATE INDEX IF NOT EXISTS idx_grammar_mistake ON grammar_common_mistake(grammar_item_id)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_relation ON grammar_relation(grammar_item_id)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_analytics ON grammar_analytics(grammar_item_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_questions_created ON questions(created_at DESC)`,
-      `CREATE INDEX IF NOT EXISTS idx_questions_type ON questions(question_type)`,
       `CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
       `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
-      `CREATE INDEX IF NOT EXISTS idx_question_answers_question ON question_answers(question_id)`,
       `CREATE INDEX IF NOT EXISTS idx_question_answers_session ON question_answers(session_id)`
     ]
 

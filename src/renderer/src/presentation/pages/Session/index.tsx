@@ -36,30 +36,21 @@ const SessionPage = () => {
           return
         }
 
-        const result = await window.api.cloudDatabase.query(
-          'SELECT * FROM sessions WHERE id = $1',
-          [sessionId]
-        )
+        const { getSessionStorageService } = await import('../../../services/SessionStorageService')
+        const storageService = getSessionStorageService()
+        const session = await storageService.getSessionById(sessionId)
 
-        if (!result.success || result.rows.length === 0) {
-          console.error('[SessionPage] Session not found')
+        if (!session || session.questions.length === 0) {
+          console.error('[SessionPage] No questions found for session')
           setIsLoading(false)
           return
         }
 
-        const session = result.rows[0]
-        const questionIds = session.question_ids
-
-        // Load questions từ database
-        const questionsResult = await window.api.cloudDatabase.query(
-          'SELECT * FROM questions WHERE id = ANY($1)',
-          [questionIds]
+        setQuestions(session.questions)
+        console.log(
+          '[SessionPage] ✅ Loaded questions from localStorage:',
+          session.questions.length
         )
-
-        if (questionsResult.success) {
-          const loadedQuestions = questionsResult.rows.map((row) => JSON.parse(row.question_data))
-          setQuestions(loadedQuestions)
-        }
       } catch (error) {
         console.error('[SessionPage] Error loading questions:', error)
       } finally {
@@ -80,28 +71,34 @@ const SessionPage = () => {
 
     setAnswers((prev) => [...prev, newAnswer])
 
-    // 🔥 Lưu answer vào cloud database
+    const updatedQuestions = questions.map((q) =>
+      q.id === questionId ? { ...q, user_answer: userAnswer, is_correct: isCorrect } : q
+    )
+    setQuestions(updatedQuestions)
+
     try {
-      const { getSessionService } = await import('../../../services/SessionService')
-      const sessionService = getSessionService()
-      await sessionService.saveAnswer(questionId, sessionId || '', userAnswer, isCorrect)
-      console.log('[SessionPage] ✅ Answer saved to database')
+      const { getSessionStorageService } = await import('../../../services/SessionStorageService')
+      const storageService = getSessionStorageService()
+      const session = await storageService.getSessionById(sessionId || '')
+
+      if (session) {
+        session.questions = updatedQuestions
+        await storageService.saveSession(session)
+        console.log('[SessionPage] ✅ Answer saved to localStorage')
+      }
     } catch (error) {
       console.error('[SessionPage] ❌ Failed to save answer:', error)
     }
 
-    // 🔥 Kiểm tra nếu đã hoàn thành tất cả câu hỏi
-    // 🔥 Kiểm tra nếu đã hoàn thành tất cả câu hỏi
     const totalAnswered = answers.length + 1
     if (totalAnswered === questions.length) {
       const allAnswers = [...answers, newAnswer]
-      const correctCount = allAnswers.filter((a) => a.isCorrect).length
 
       try {
         const { getSessionService } = await import('../../../services/SessionService')
         const sessionService = getSessionService()
-        await sessionService.completeSession(sessionId || '', questions.length, correctCount)
-        console.log('[SessionPage] ✅ Session completed')
+        await sessionService.completeSession(sessionId || '')
+        console.log('[SessionPage] ✅ Session completed and synced to cloud')
 
         // 🔥 Xử lý các câu trả lời sai → tạo collection
         const incorrectAnswers = allAnswers.filter((a) => !a.isCorrect)

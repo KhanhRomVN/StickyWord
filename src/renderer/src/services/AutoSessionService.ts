@@ -1,5 +1,5 @@
 import { Session } from '../presentation/pages/Session/types'
-import { Question } from '../presentation/pages/Question/types'
+import { Question } from '../presentation/pages/Session/types'
 import { createCreateCollectionService } from '../presentation/pages/Collection/services/CreateCollectionService'
 
 export interface AutoSessionConfig {
@@ -71,19 +71,6 @@ export class AutoSessionService {
     })
 
     try {
-      const pendingSessions = await this.getPendingSessions()
-      console.log('[AutoSessionService] 📊 Pending sessions check:', {
-        current: pendingSessions.length,
-        max: this.maxPendingSessions,
-        can_create: pendingSessions.length < this.maxPendingSessions
-      })
-
-      if (pendingSessions.length >= this.maxPendingSessions) {
-        console.log('[AutoSessionService] ⛔ Max pending sessions reached, skipping')
-        return
-      }
-
-      console.log('[AutoSessionService] 🤖 Generating questions with AI...')
       const questions = await this.generateQuestionsWithAI()
 
       if (questions.length === 0) {
