@@ -2,11 +2,20 @@
 export interface Session {
   id: string
   title: string
+  description?: string
   questions: Question[]
   status: 'pending' | 'completed'
   created_at: string
+  completed_at?: string
   expires_at?: string
   difficulty_level: number
+  total_time_spent?: number
+  total_score?: number
+  accuracy_rate?: number
+  attempts_allowed: number
+  target_language: string
+  source_language: string
+  topics: string[]
 }
 
 export interface base_question {
@@ -29,6 +38,9 @@ export interface base_question {
   created_at: string
   user_answer?: string
   is_correct?: boolean
+  scores: [number, number, number, number, number, number]
+  time_spent?: number
+  time_limit: number
 }
 
 export interface lexical_fix_question extends base_question {

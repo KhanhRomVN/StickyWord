@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Settings as SettingsIcon, Palette, Key, Bell, BarChart3 } from 'lucide-react'
+import { Settings as SettingsIcon, Palette, Key, Bell, BarChart3, Database } from 'lucide-react'
 import AppearanceSection from './components/AppearanceSection'
 import GeminiApiKeySection from './components/GeminiApiKeySection'
 import SessionSection from './components/SessionSection'
 import AnalyticsSection from './components/AnalyticsSection'
 import GeneralSection from './components/GeneralSection'
+import DatabaseCloudSection from './components/DatabaseCloudSection'
 
-type SettingTab = 'general' | 'appearance' | 'gemini' | 'session' | 'analytics'
+type SettingTab = 'general' | 'appearance' | 'gemini' | 'session' | 'analytics' | 'database'
 
 interface SettingOption {
   id: SettingTab
@@ -19,6 +20,11 @@ const settingOptions: SettingOption[] = [
     id: 'general',
     label: 'General',
     icon: SettingsIcon
+  },
+  {
+    id: 'database',
+    label: 'Cloud Database',
+    icon: Database
   },
   {
     id: 'gemini',
@@ -49,6 +55,8 @@ const SettingPage = () => {
     switch (activeTab) {
       case 'general':
         return <GeneralSection />
+      case 'database':
+        return <DatabaseCloudSection />
       case 'appearance':
         return <AppearanceSection />
       case 'gemini':

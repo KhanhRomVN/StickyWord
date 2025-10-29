@@ -5,22 +5,13 @@ import CustomButton from '../../../components/common/CustomButton'
 import { Plus, RefreshCw, AlertCircle } from 'lucide-react'
 import { getSessionService } from '../../../services/SessionService'
 import { createCreateCollectionService } from '../Collection/services/CreateCollectionService'
+import { Session } from '../Session/types'
 
 // Type guard helper
 const ensureApiAvailable = () => {
   if (!window.api) {
     throw new Error('Electron API không khả dụng')
   }
-}
-
-interface Session {
-  id: string
-  title?: string
-  question_ids: string[]
-  status: 'pending' | 'completed'
-  created_at: string
-  expires_at?: string
-  difficulty_level?: number
 }
 
 const SessionManagerPage = () => {
@@ -48,9 +39,6 @@ const SessionManagerPage = () => {
           config = configStr
         }
         setMaxPendingSessions(config.max_pending_sessions || 3)
-        console.log('[SessionManager] 📊 Loaded config:', {
-          max_pending_sessions: config.max_pending_sessions
-        })
       }
     } catch (error) {
       console.error('[SessionManager] Error loading config:', error)
@@ -60,18 +48,66 @@ const SessionManagerPage = () => {
   const loadSessions = async () => {
     try {
       setIsLoading(true)
+
       const { getSessionStorageService } = await import('../../../services/SessionStorageService')
       const storageService = getSessionStorageService()
-      const allSessions = await storageService.getAllSessions()
+
+      const localSessions = await storageService.getAllSessions()
+
+      ensureApiAvailable()
+      const cloudResult = await window.api!.cloudDatabase.query(
+        'SELECT * FROM sessions ORDER BY created_at DESC'
+      )
+
+      const cloudSessions: Session[] = cloudResult.success
+        ? cloudResult.rows.map((row: any) => ({
+            id: row.id,
+            title: row.title || `Session ${row.id.substring(0, 8)}`,
+            description: row.description || '',
+            questions: Array.isArray(row.questions) ? row.questions : [],
+            status: (row.status as 'pending' | 'completed') || 'pending',
+            created_at: row.created_at,
+            completed_at: row.completed_at,
+            expires_at: row.expires_at,
+            difficulty_level: row.difficulty_level || 5,
+            total_time_spent: row.total_time_spent,
+            total_score: row.total_score,
+            accuracy_rate: row.accuracy_rate,
+            attempts_allowed: row.attempts_allowed || 1,
+            target_language: row.target_language || 'en',
+            source_language: row.source_language || 'vi',
+            topics: Array.isArray(row.topics) ? row.topics : []
+          }))
+        : []
+
+      const sessionMap = new Map<string, Session>()
+
+      const allSessionsArray = [...localSessions, ...cloudSessions]
+      allSessionsArray.forEach((session) => {
+        if (!sessionMap.has(session.id)) {
+          sessionMap.set(session.id, session)
+        } else {
+          const existing = sessionMap.get(session.id)!
+          const sessionUpdated = (session as any).updated_at || session.created_at
+          const existingUpdated = (existing as any).updated_at || existing.created_at
+
+          if (
+            session.status === 'completed' ||
+            new Date(sessionUpdated).getTime() > new Date(existingUpdated).getTime()
+          ) {
+            sessionMap.set(session.id, session)
+          }
+        }
+      })
+
+      const allSessions = Array.from(sessionMap.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
 
       setSessions(allSessions)
 
       const pendingCount = allSessions.filter((s) => s.status === 'pending').length
       setPendingSessionCount(pendingCount)
-      console.log('[SessionManager] 📊 Pending sessions:', {
-        count: pendingCount,
-        max: maxPendingSessions
-      })
     } catch (error) {
       console.error('[SessionManager] Error loading sessions:', error)
     } finally {
@@ -93,7 +129,6 @@ const SessionManagerPage = () => {
 
       // Lấy 5 vocabulary items có mastery_score thấp nhất
       ensureApiAvailable()
-      console.log('[SessionManager] 🔍 Fetching vocabulary items...')
       const vocabResult = await window.api!.cloudDatabase.query(
         `
         SELECT v.id, v.content, v.item_type
@@ -103,14 +138,8 @@ const SessionManagerPage = () => {
         LIMIT 5
         `
       )
-      console.log('[SessionManager] 📊 Vocabulary query result:', {
-        success: vocabResult.success,
-        rowCount: vocabResult.rows?.length || 0,
-        error: vocabResult.error || 'none'
-      })
 
       // Lấy 5 grammar items có mastery_score thấp nhất
-      console.log('[SessionManager] 🔍 Fetching grammar items...')
       const grammarResult = await window.api!.cloudDatabase.query(
         `
         SELECT g.id, g.title, g.item_type
@@ -120,20 +149,9 @@ const SessionManagerPage = () => {
         LIMIT 5
         `
       )
-      console.log('[SessionManager] 📊 Grammar query result:', {
-        success: grammarResult.success,
-        rowCount: grammarResult.rows?.length || 0,
-        error: grammarResult.error || 'none'
-      })
 
       const vocabularyIds = vocabResult.success ? vocabResult.rows.map((r) => r.id) : []
       const grammarIds = grammarResult.success ? grammarResult.rows.map((r) => r.id) : []
-
-      console.log('[SessionManager] ✅ Selected items:', {
-        vocabularyIds,
-        grammarIds,
-        totalItems: vocabularyIds.length + grammarIds.length
-      })
 
       if (vocabularyIds.length === 0 && grammarIds.length === 0) {
         console.warn('[SessionManager] ⚠️ No vocabulary or grammar items found in database')
@@ -141,17 +159,10 @@ const SessionManagerPage = () => {
       }
 
       // 2. Tạo prompt để generate questions
-      console.log('[SessionManager] 📝 Building prompt...')
       const prompt = buildQuestionsPrompt(vocabularyIds, grammarIds)
-      console.log('[SessionManager] 📝 Prompt length:', prompt.length)
-      console.log('[SessionManager] 📝 Prompt preview:', prompt.substring(0, 500))
 
       // 3. Gọi AI để tạo questions
-      console.log('[SessionManager] 🔑 Getting Gemini API keys...')
       const apiKeysStr = await window.api!.storage.get('gemini_api_keys')
-      console.log('[SessionManager] 🔍 API keys raw value:', apiKeysStr)
-      console.log('[SessionManager] 🔍 API keys type:', typeof apiKeysStr)
-      console.log('[SessionManager] 🔍 API keys length:', apiKeysStr?.length)
 
       if (!apiKeysStr) {
         console.error('[SessionManager] ❌ No Gemini API keys found in storage')
@@ -161,7 +172,6 @@ const SessionManagerPage = () => {
       // Kiểm tra xem apiKeysStr đã là object hay chưa
       let apiKeys: any
       if (typeof apiKeysStr === 'string') {
-        console.log('[SessionManager] 🔧 Parsing API keys from string...')
         try {
           apiKeys = JSON.parse(apiKeysStr)
         } catch (parseError) {
@@ -169,23 +179,11 @@ const SessionManagerPage = () => {
           throw new Error('Invalid API keys format in storage')
         }
       } else if (typeof apiKeysStr === 'object') {
-        console.log('[SessionManager] 🔧 API keys already an object, using directly')
         apiKeys = apiKeysStr
       } else {
         console.error('[SessionManager] ❌ Unexpected API keys type:', typeof apiKeysStr)
         throw new Error('Invalid API keys type in storage')
       }
-
-      console.log('[SessionManager] 🔑 Processed API keys:', {
-        isArray: Array.isArray(apiKeys),
-        count: Array.isArray(apiKeys) ? apiKeys.length : 0,
-        keys: Array.isArray(apiKeys)
-          ? apiKeys.map((k: any) => ({
-              hasKey: !!k.key,
-              keyPreview: k.key?.substring(0, 10) + '...'
-            }))
-          : 'not an array'
-      })
 
       if (!Array.isArray(apiKeys) || apiKeys.length === 0) {
         console.error('[SessionManager] ❌ No valid API keys available')
@@ -193,50 +191,22 @@ const SessionManagerPage = () => {
       }
 
       const selectedKey = apiKeys[0]
-      console.log('[SessionManager] 🔑 Using API key:', {
-        hasKey: !!selectedKey.key,
-        keyLength: selectedKey.key?.length || 0,
-        keyPreview: selectedKey.key?.substring(0, 10) + '...'
-      })
-
       const service = createCreateCollectionService(selectedKey.key)
-
-      console.log('[SessionManager] 🤖 Generating questions with AI...')
       const textResponse = await service.generateQuestions(prompt)
-      console.log('[SessionManager] 📦 Raw AI response length:', textResponse.length)
-      console.log('[SessionManager] 📦 Raw AI response preview:', textResponse.substring(0, 500))
 
       // Parse JSON từ response với error handling tốt hơn
       let parsed: any
       try {
-        // Thử match JSON block trong markdown
         const jsonMatch = textResponse.match(/```json\n([\s\S]*?)\n```/)
-        console.log('[SessionManager] 🔍 JSON markdown block found:', !!jsonMatch)
-
         let jsonText = jsonMatch ? jsonMatch[1].trim() : textResponse.trim()
-        console.log('[SessionManager] 📝 Extracted text length:', jsonText.length)
-        console.log('[SessionManager] 📝 Extracted text preview:', jsonText.substring(0, 300))
-
-        // Loại bỏ text thừa trước { và sau }
         const startIdx = jsonText.indexOf('{')
         const endIdx = jsonText.lastIndexOf('}')
-        console.log('[SessionManager] 🎯 JSON boundaries:', { startIdx, endIdx })
 
         if (startIdx !== -1 && endIdx !== -1) {
           jsonText = jsonText.substring(startIdx, endIdx + 1)
-          console.log('[SessionManager] ✂️ Trimmed JSON length:', jsonText.length)
-          console.log('[SessionManager] ✂️ Trimmed JSON preview:', jsonText.substring(0, 300))
         }
 
-        console.log('[SessionManager] 🔧 Attempting JSON.parse...')
         parsed = JSON.parse(jsonText)
-        console.log('[SessionManager] ✅ JSON parsed successfully')
-        console.log('[SessionManager] 📊 Parsed structure:', {
-          hasQuestions: !!parsed.questions,
-          questionsType: typeof parsed.questions,
-          isArray: Array.isArray(parsed.questions),
-          questionsCount: parsed.questions?.length || 0
-        })
       } catch (parseError) {
         console.error('[SessionManager] ❌ JSON parse error:', parseError)
         console.error(
@@ -264,27 +234,15 @@ const SessionManagerPage = () => {
         throw new Error('Invalid questions format from AI')
       }
 
-      console.log('[SessionManager] 🔢 Questions count:', parsed.questions.length)
-
       if (parsed.questions.length < 10) {
         console.warn(
           `[SessionManager] ⚠️ Only ${parsed.questions.length} questions generated, expected 10`
         )
       }
 
-      // Validate các question có đủ trường bắt buộc không
-      console.log('[SessionManager] 🔍 Starting question validation...')
       const validationErrors: string[] = []
 
       parsed.questions.forEach((q: any, index: number) => {
-        console.log(`[SessionManager] 📝 Validating question ${index + 1}:`, {
-          question_type: q.question_type,
-          has_context: !!q.context,
-          context_length: q.context?.length || 0,
-          difficulty_level: q.difficulty_level,
-          difficulty_type: typeof q.difficulty_level
-        })
-
         if (!q.question_type) {
           validationErrors.push(`Question ${index + 1}: Missing question_type`)
         }
@@ -313,48 +271,52 @@ const SessionManagerPage = () => {
         throw new Error(`Question validation failed:\n${validationErrors.join('\n')}`)
       }
 
-      console.log('[SessionManager] ✅ All questions validated successfully')
-      console.log('[SessionManager] 📊 Generated questions:', parsed.questions.length)
-
       // 4. Xử lý questions (đã validate ở trên)
-      console.log('[SessionManager] 🔧 Processing questions...')
       const questions = parsed.questions.map((q: any, index: number) => {
         const questionId = `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${index}`
+
+        // Tính scores dựa trên difficulty_level
+        const baseScore = q.difficulty_level * 10
+        const scores: [number, number, number, number, number, number] = [
+          baseScore + 20, // Rất nhanh (<30% time_limit)
+          baseScore + 15, // Nhanh (<50% time_limit)
+          baseScore + 10, // Trung bình (<70% time_limit)
+          baseScore + 5, // Hơi chậm (<85% time_limit)
+          baseScore, // Chậm (<100% time_limit)
+          Math.floor(baseScore * 0.5) // Quá thời gian (>100% time_limit)
+        ]
+
+        // Tính time_limit dựa trên difficulty_level và question_type
+        const baseTime = 30 // 30 seconds
+        const typeMultiplier = [
+          'translate',
+          'grammar_transformation',
+          'reverse_translation'
+        ].includes(q.question_type)
+          ? 2
+          : 1
+        const timeLimit = baseTime + q.difficulty_level * 5 * typeMultiplier
 
         const systemFields = {
           id: questionId,
           vocabulary_item_ids: vocabularyIds.length > 0 ? vocabularyIds : [],
           grammar_points: grammarIds.length > 0 ? grammarIds : [],
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          scores: scores,
+          time_limit: timeLimit
         }
-
-        console.log(`[SessionManager] 📝 Processing question ${index + 1}:`, {
-          question_type: q.question_type,
-          has_vocabulary: vocabularyIds.length > 0,
-          has_grammar: grammarIds.length > 0
-        })
 
         const processedQuestion = {
           ...q,
           ...systemFields
         }
 
-        console.log(`[SessionManager] ✅ Question ${index + 1} processed:`, {
-          id: processedQuestion.id,
-          question_type: processedQuestion.question_type,
-          difficulty_level: processedQuestion.difficulty_level
-        })
-
         return processedQuestion
       })
-
-      console.log('[SessionManager] ✅ Processed questions:', questions.length)
 
       // 5. Tạo session và lưu questions
       const sessionService = getSessionService()
       const session = await sessionService.createSession(questions, 24)
-
-      console.log('[SessionManager] Session created:', session.id)
 
       // 6. Chuyển tới SessionPage
       navigate(`/session?sessionId=${session.id}`)
@@ -630,12 +592,46 @@ Generate NOW with diverse question types. Return ONLY valid JSON, no explanation
     }
 
     try {
+      const { getSessionStorageService } = await import('../../../services/SessionStorageService')
+      const storageService = getSessionStorageService()
+
+      const localSession = await storageService.getSessionById(sessionId)
+
       ensureApiAvailable()
-      await window.api!.cloudDatabase.query('DELETE FROM sessions WHERE id = $1', [sessionId])
+      const cloudResult = await window.api!.cloudDatabase.query(
+        'SELECT * FROM sessions WHERE id = $1',
+        [sessionId]
+      )
+
+      const cloudSession =
+        cloudResult.success && cloudResult.rows.length > 0 ? cloudResult.rows[0] : null
+
+      if (!localSession && !cloudSession) {
+        console.warn(
+          '[SessionManager] ⚠️ Session not found in both localStorage and cloud:',
+          sessionId
+        )
+        alert('Session không tồn tại')
+        return
+      }
+
+      if (cloudSession) {
+        const deleteQuery = 'DELETE FROM sessions WHERE id = $1'
+        const deleteResult = await window.api!.cloudDatabase.query(deleteQuery, [sessionId])
+
+        if (!deleteResult.success) {
+          throw new Error(deleteResult.error || 'Failed to delete session from cloud')
+        }
+      }
+
+      if (localSession) {
+        await storageService.deleteSession(sessionId)
+      }
+
       await loadSessions()
     } catch (error) {
-      console.error('[SessionManager] Error deleting session:', error)
-      alert('Lỗi khi xóa session')
+      console.error('[SessionManager] ❌ Error deleting session:', error)
+      alert(`Lỗi khi xóa session: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -692,10 +688,134 @@ Generate NOW with diverse question types. Return ONLY valid JSON, no explanation
             <p className="text-text-secondary">Đang tải sessions...</p>
           </div>
         ) : sessions.length === 0 ? (
-          <div className="text-center py-12 border-2 border-dashed border-border rounded-lg bg-card-background">
-            <Plus className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-text-secondary">Chưa có session nào</p>
-            <p className="text-sm text-text-secondary mt-1">Nhấn "Tạo Session" để bắt đầu</p>
+          <div className="relative overflow-hidden">
+            {/* Background decoration */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-10 left-20 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-20 right-20 w-40 h-40 bg-purple-500/5 rounded-full blur-3xl"></div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-green-500/5 rounded-full blur-3xl"></div>
+            </div>
+
+            {/* Main empty state card */}
+            <div className="relative bg-card-background border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-12 text-center">
+              {/* Icon container with animation */}
+              <div className="relative inline-block mb-6">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-xl animate-pulse"></div>
+                <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-lg">
+                  <Plus className="w-12 h-12 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                </div>
+              </div>
+
+              {/* Title */}
+              <h3 className="text-2xl font-bold text-text-primary mb-3">Chưa có session nào</h3>
+
+              {/* Description */}
+              <p className="text-text-secondary text-base mb-8 max-w-md mx-auto">
+                Bắt đầu hành trình học tập của bạn bằng cách tạo session đầu tiên. Mỗi session sẽ
+                giúp bạn rèn luyện kỹ năng tiếng Anh một cách hiệu quả.
+              </p>
+
+              {/* CTA Button */}
+              <CustomButton
+                variant="primary"
+                size="md"
+                icon={Plus}
+                onClick={handleCreateSession}
+                disabled={isCreating}
+                loading={isCreating}
+                className="mx-auto px-8 py-3 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
+                {isCreating ? 'Đang tạo session...' : 'Tạo Session Đầu Tiên'}
+              </CustomButton>
+
+              {/* Features list */}
+              <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
+                <div className="text-center p-4">
+                  <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <svg
+                      className="w-6 h-6 text-blue-600 dark:text-blue-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                  </div>
+                  <h4 className="font-semibold text-text-primary mb-1 text-sm">Học thông minh</h4>
+                  <p className="text-xs text-text-secondary">
+                    AI tự động tạo câu hỏi phù hợp với trình độ
+                  </p>
+                </div>
+
+                <div className="text-center p-4">
+                  <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <svg
+                      className="w-6 h-6 text-purple-600 dark:text-purple-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <h4 className="font-semibold text-text-primary mb-1 text-sm">
+                    Đánh giá chính xác
+                  </h4>
+                  <p className="text-xs text-text-secondary">Theo dõi tiến độ học tập chi tiết</p>
+                </div>
+
+                <div className="text-center p-4">
+                  <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <svg
+                      className="w-6 h-6 text-green-600 dark:text-green-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <h4 className="font-semibold text-text-primary mb-1 text-sm">Linh hoạt</h4>
+                  <p className="text-xs text-text-secondary">
+                    Học mọi lúc, mọi nơi theo lịch trình
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick tips */}
+              <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-text-secondary flex items-center justify-center gap-2">
+                  <span className="inline-flex items-center justify-center w-5 h-5 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full text-xs font-semibold">
+                    ?
+                  </span>
+                  <span>
+                    <span className="font-medium text-text-primary">Mẹo:</span> Bạn có thể cấu hình
+                    tự động tạo session trong
+                    <button
+                      onClick={() => navigate('/settings')}
+                      className="ml-1 text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                    >
+                      Settings → Session
+                    </button>
+                  </span>
+                </p>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

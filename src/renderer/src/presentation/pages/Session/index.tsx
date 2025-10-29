@@ -16,7 +16,6 @@ const SessionPage = () => {
   const [searchParams] = useSearchParams()
   const sessionId = searchParams.get('sessionId')
 
-  // Lấy 10 câu hỏi đầu tiên làm mock data
   const [questions, setQuestions] = useState<Question[]>([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<SessionAnswer[]>([])
@@ -25,9 +24,6 @@ const SessionPage = () => {
   const currentQuestion = questions[currentQuestionIndex]
 
   useEffect(() => {
-    console.log('[SessionPage] Loaded with sessionId:', sessionId)
-
-    // 🔥 Load questions from sessionId
     const loadQuestions = async () => {
       try {
         if (!sessionId || !window.api) {
@@ -46,11 +42,20 @@ const SessionPage = () => {
           return
         }
 
-        setQuestions(session.questions)
-        console.log(
-          '[SessionPage] ✅ Loaded questions from localStorage:',
-          session.questions.length
-        )
+        // ✅ Clean questions: xóa user_answer và is_correct
+        const cleanedQuestions = session.questions.map((q, index) => {
+          const { user_answer, is_correct, ...cleanQuestion } = q as any
+
+          if (!cleanQuestion.id) {
+            console.error(`[SessionPage] ❌ Question ${index} has no ID!`, cleanQuestion)
+          }
+
+          return cleanQuestion as Question
+        })
+
+        setQuestions(cleanedQuestions)
+        setAnswers([])
+        setCurrentQuestionIndex(0)
       } catch (error) {
         console.error('[SessionPage] Error loading questions:', error)
       } finally {
@@ -61,7 +66,12 @@ const SessionPage = () => {
     loadQuestions()
   }, [sessionId])
 
-  const handleAnswerSubmit = async (questionId: string, userAnswer: string, isCorrect: boolean) => {
+  const handleAnswerSubmit = (questionId: string, userAnswer: string, isCorrect: boolean) => {
+    if (!questionId) {
+      console.error('[SessionPage] ❌ Cannot submit answer: questionId is undefined')
+      return
+    }
+
     const newAnswer: SessionAnswer = {
       questionId,
       userAnswer,
@@ -71,47 +81,98 @@ const SessionPage = () => {
 
     setAnswers((prev) => [...prev, newAnswer])
 
-    const updatedQuestions = questions.map((q) =>
-      q.id === questionId ? { ...q, user_answer: userAnswer, is_correct: isCorrect } : q
-    )
-    setQuestions(updatedQuestions)
+    const updatedQuestions = questions.map((q) => {
+      if (q.id === questionId) {
+        return { ...q, user_answer: userAnswer, is_correct: isCorrect }
+      }
+      return q
+    })
 
+    setQuestions(updatedQuestions)
+    const totalAnswered = answers.length + 1
+    if (totalAnswered === questions.length) {
+      handleCompleteSession([...answers, newAnswer], updatedQuestions)
+    }
+  }
+
+  const handleCompleteSession = async (allAnswers: SessionAnswer[], finalQuestions: Question[]) => {
     try {
+      // 1. Lưu session với questions đã có answers vào localStorage
       const { getSessionStorageService } = await import('../../../services/SessionStorageService')
       const storageService = getSessionStorageService()
       const session = await storageService.getSessionById(sessionId || '')
 
-      if (session) {
-        session.questions = updatedQuestions
-        await storageService.saveSession(session)
-        console.log('[SessionPage] ✅ Answer saved to localStorage')
+      if (!session) {
+        console.error('[SessionPage] ❌ Session not found')
+        return
       }
+
+      // Tính toán các metrics
+      const correctCount = allAnswers.filter((a) => a.isCorrect).length
+      const totalCount = allAnswers.length
+      const accuracyRate = Math.round((correctCount / totalCount) * 100)
+
+      // Tính total_time_spent từ questions
+      const totalTimeSpent = finalQuestions.reduce((sum, q) => sum + (q.time_spent || 0), 0)
+
+      // Tính total_score dựa trên scores và time_spent
+      const totalScore = finalQuestions.reduce((sum, q) => {
+        if (!q.is_correct || !q.time_spent || !q.time_limit) return sum
+
+        const timeRatio = q.time_spent / q.time_limit
+        let scoreIndex = 0
+
+        if (timeRatio <= 0.3)
+          scoreIndex = 0 // Rất nhanh
+        else if (timeRatio <= 0.5)
+          scoreIndex = 1 // Nhanh
+        else if (timeRatio <= 0.7)
+          scoreIndex = 2 // Trung bình
+        else if (timeRatio <= 0.85)
+          scoreIndex = 3 // Hơi chậm
+        else if (timeRatio <= 1.0)
+          scoreIndex = 4 // Chậm
+        else scoreIndex = 5 // Quá thời gian
+
+        return sum + q.scores[scoreIndex]
+      }, 0)
+
+      const completedSession = {
+        ...session,
+        questions: finalQuestions,
+        status: 'completed' as const,
+        completed_at: new Date().toISOString(),
+        total_time_spent: totalTimeSpent,
+        total_score: totalScore,
+        accuracy_rate: accuracyRate
+      }
+
+      await storageService.updateSession(sessionId || '', completedSession)
+
+      // 2. Đồng bộ lên cloud database
+      const { getSessionService } = await import('../../../services/SessionService')
+      const sessionService = getSessionService()
+      await sessionService.completeSession(sessionId || '')
+
+      // 3. Xử lý các câu trả lời sai → tạo collection
+      const incorrectAnswers = allAnswers.filter((a) => !a.isCorrect)
+      if (incorrectAnswers.length > 0) {
+        await handleIncorrectAnswers(incorrectAnswers, finalQuestions)
+      }
+
+      // 4. Hiển thị thông báo hoàn thành
+      alert(
+        `🎉 Hoàn thành session!\n\n` +
+          `✅ Đúng: ${correctCount}/${totalCount}\n` +
+          `📊 Độ chính xác: ${accuracyRate}%\n` +
+          `⏱️ Thời gian: ${Math.floor(totalTimeSpent / 60)}:${(totalTimeSpent % 60).toString().padStart(2, '0')}\n` +
+          `🎯 Điểm số: ${totalScore}\n\n` +
+          `${incorrectAnswers.length > 0 ? '📚 Đã tạo collection từ các câu sai để ôn tập!' : '🌟 Tuyệt vời! Không có câu nào sai!'}`
+      )
     } catch (error) {
-      console.error('[SessionPage] ❌ Failed to save answer:', error)
+      console.error('[SessionPage] ❌ Failed to complete session:', error)
+      alert('❌ Lỗi khi hoàn thành session. Vui lòng thử lại.')
     }
-
-    const totalAnswered = answers.length + 1
-    if (totalAnswered === questions.length) {
-      const allAnswers = [...answers, newAnswer]
-
-      try {
-        const { getSessionService } = await import('../../../services/SessionService')
-        const sessionService = getSessionService()
-        await sessionService.completeSession(sessionId || '')
-        console.log('[SessionPage] ✅ Session completed and synced to cloud')
-
-        // 🔥 Xử lý các câu trả lời sai → tạo collection
-        const incorrectAnswers = allAnswers.filter((a) => !a.isCorrect)
-        if (incorrectAnswers.length > 0) {
-          console.log('[SessionPage] 🔍 Processing incorrect answers:', incorrectAnswers.length)
-          await handleIncorrectAnswers(incorrectAnswers, questions)
-        }
-      } catch (error) {
-        console.error('[SessionPage] ❌ Failed to complete session:', error)
-      }
-    }
-
-    console.log('[SessionPage] Answer submitted:', newAnswer)
   }
 
   const handleIncorrectAnswers = async (
@@ -119,21 +180,14 @@ const SessionPage = () => {
     questions: Question[]
   ) => {
     try {
-      console.log(
-        '[handleIncorrectAnswers] 🚀 Starting collection generation from incorrect answers'
-      )
-
-      // 1. Lấy các question tương ứng với incorrect answers
       const incorrectQuestions = incorrectAnswers
         .map((ans) => questions.find((q) => q.id === ans.questionId))
         .filter(Boolean) as Question[]
 
       if (incorrectQuestions.length === 0) {
-        console.log('[handleIncorrectAnswers] ⚠️ No incorrect questions found')
         return
       }
 
-      // 2. Lấy Gemini API key
       if (!window.api) {
         console.error('[handleIncorrectAnswers] ❌ window.api not available')
         return
@@ -146,21 +200,15 @@ const SessionPage = () => {
       }
 
       const selectedKey = apiKeysStr[0]
-      console.log('[handleIncorrectAnswers] ✅ Using API key:', selectedKey.name)
 
-      // 3. Tạo prompt để AI generate collection
       const prompt = buildCollectionPrompt(incorrectQuestions)
 
-      // 4. Gọi Gemini API
       const { createCreateCollectionService } = await import(
         '../../../presentation/pages/Collection/services/CreateCollectionService'
       )
       const service = createCreateCollectionService(selectedKey.key)
       const aiResponse = await service.generateQuestions(prompt)
 
-      console.log('[handleIncorrectAnswers] 📥 AI Response received')
-
-      // 5. Parse JSON response
       const jsonMatch = aiResponse.match(/```json\n([\s\S]*?)\n```/)
       const jsonText = jsonMatch ? jsonMatch[1] : aiResponse
       const parsed = JSON.parse(jsonText)
@@ -170,9 +218,6 @@ const SessionPage = () => {
         return
       }
 
-      console.log('[handleIncorrectAnswers] ✅ Parsed collections:', parsed.collections.length)
-
-      // 6. Lưu hoặc cập nhật collection vào database
       const { getCloudDatabase } = await import('../../../services/CloudDatabaseService')
       const db = getCloudDatabase()
 
@@ -184,8 +229,6 @@ const SessionPage = () => {
       for (const collection of parsed.collections) {
         await processCollection(collection, db)
       }
-
-      console.log('[handleIncorrectAnswers] ✅ All collections processed successfully')
     } catch (error) {
       console.error('[handleIncorrectAnswers] ❌ Error processing incorrect answers:', error)
     }
@@ -309,7 +352,6 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
   }
 
   const processVocabularyCollection = async (collection: any, db: any) => {
-    // 1. Kiểm tra xem collection đã tồn tại chưa
     if (!window.api) {
       console.error('[processVocabularyCollection] ❌ window.api not available')
       return
@@ -322,9 +364,7 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
     ])
 
     if (checkResult.success && checkResult.rows.length > 0) {
-      // ✅ Đã tồn tại → giảm 5 điểm mastery
       const existingId = checkResult.rows[0].id
-      console.log('[processVocabularyCollection] 📉 Item exists, decreasing mastery:', existingId)
 
       const updateMasteryQuery = `
       UPDATE vocabulary_analytics 
@@ -332,18 +372,11 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
           updated_at = $2
       WHERE vocabulary_item_id = $1
     `
-      if (window.api) {
-        await window.api.cloudDatabase.query(updateMasteryQuery, [
-          existingId,
-          new Date().toISOString()
-        ])
-      }
-
-      console.log('[processVocabularyCollection] ✅ Mastery decreased by 5 points')
+      await window.api.cloudDatabase.query(updateMasteryQuery, [
+        existingId,
+        new Date().toISOString()
+      ])
     } else {
-      // ✅ Chưa tồn tại → thêm mới
-      console.log('[processVocabularyCollection] ➕ Creating new item:', collection.content)
-
       const newItem = {
         id: `vocab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         item_type: collection.type,
@@ -361,12 +394,10 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
       }
 
       await db.saveVocabularyItem(newItem)
-      console.log('[processVocabularyCollection] ✅ New item created')
     }
   }
 
   const processGrammarCollection = async (collection: any, db: any) => {
-    // 1. Kiểm tra xem grammar đã tồn tại chưa
     if (!window.api) {
       console.error('[processGrammarCollection] ❌ window.api not available')
       return
@@ -376,9 +407,7 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
     const checkResult = await window.api.cloudDatabase.query(checkQuery, [collection.title])
 
     if (checkResult.success && checkResult.rows.length > 0) {
-      // ✅ Đã tồn tại → giảm 5 điểm mastery
       const existingId = checkResult.rows[0].id
-      console.log('[processGrammarCollection] 📉 Grammar exists, decreasing mastery:', existingId)
 
       const updateMasteryQuery = `
       UPDATE grammar_analytics 
@@ -386,18 +415,11 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
           updated_at = $2
       WHERE grammar_item_id = $1
     `
-      if (window.api) {
-        await window.api.cloudDatabase.query(updateMasteryQuery, [
-          existingId,
-          new Date().toISOString()
-        ])
-      }
-
-      console.log('[processGrammarCollection] ✅ Mastery decreased by 5 points')
+      await window.api.cloudDatabase.query(updateMasteryQuery, [
+        existingId,
+        new Date().toISOString()
+      ])
     } else {
-      // ✅ Chưa tồn tại → thêm mới
-      console.log('[processGrammarCollection] ➕ Creating new grammar:', collection.title)
-
       const newItem = {
         id: `grammar_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         item_type: collection.item_type,
@@ -416,7 +438,6 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
       }
 
       await db.saveGrammarItem(newItem)
-      console.log('[processGrammarCollection] ✅ New grammar created')
     }
   }
 

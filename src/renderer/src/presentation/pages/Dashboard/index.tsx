@@ -33,7 +33,6 @@ const DashboardPage = () => {
   }
 
   const handleStartSession = (sessionId: string) => {
-    console.log('[DashboardPage] Starting session:', sessionId)
     window.location.hash = `#/session?sessionId=${sessionId}`
   }
 

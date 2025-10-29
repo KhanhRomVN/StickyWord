@@ -58,7 +58,6 @@ const CollectionListPanel = ({
   useEffect(() => {
     const handleItemDeletedEvent = (event: CustomEvent) => {
       const { itemId } = event.detail
-      console.log('[CollectionListPanel] Item deleted event received:', itemId)
       loadItems(filterType)
       onSelectItem(null)
     }

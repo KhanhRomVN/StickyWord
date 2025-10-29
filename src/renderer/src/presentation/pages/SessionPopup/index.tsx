@@ -30,12 +30,7 @@ const SessionPopupPage = () => {
         return
       }
 
-      const result = await window.api.popup.hideAndFocusMain(sessionId)
-      if (result.success) {
-        console.log('[SessionPopup] Main window focused, navigating to session')
-      } else {
-        console.error('[SessionPopup] Failed to focus main window:', result.error)
-      }
+      await window.api.popup.hideAndFocusMain(sessionId)
     } catch (error) {
       console.error('[SessionPopup] Error:', error)
     }

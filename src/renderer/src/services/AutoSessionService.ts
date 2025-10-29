@@ -31,22 +31,11 @@ export class AutoSessionService {
 
   start() {
     const intervalMs = this.intervalMinutes * 60 * 1000
-    const nextRunTime = new Date(Date.now() + intervalMs)
-
-    console.log('[AutoSessionService] 🚀 Starting auto-create loop...', {
-      interval_minutes: this.intervalMinutes,
-      interval_ms: intervalMs,
-      next_run_at: nextRunTime.toLocaleString('vi-VN'),
-      max_pending: this.maxPendingSessions,
-      question_count: this.questionCount
-    })
 
     // Tạo session ngay lập tức lần đầu (optional)
     this.createAutoSession()
 
     this.intervalId = setInterval(async () => {
-      const now = new Date()
-      console.log('[AutoSessionService] ⏰ Timer triggered at:', now.toLocaleString('vi-VN'))
       await this.createAutoSession()
     }, intervalMs)
   }
@@ -55,58 +44,45 @@ export class AutoSessionService {
     if (this.intervalId) {
       clearInterval(this.intervalId)
       this.intervalId = null
-      console.log('[AutoSessionService] Stopped auto-create loop')
     }
   }
 
   private async createAutoSession() {
     const startTime = Date.now()
-    console.log('[AutoSessionService] 📝 Creating auto session...', {
-      timestamp: new Date().toLocaleString('vi-VN'),
-      config: {
-        interval_minutes: this.intervalMinutes,
-        max_pending: this.maxPendingSessions,
-        question_count: this.questionCount
-      }
-    })
 
     try {
-      const questions = await this.generateQuestionsWithAI()
+      // 1. Lấy vocabulary và grammar items từ database
+      const { getSessionService } = await import('./SessionService')
+      const sessionService = getSessionService()
+
+      const { vocabularyIds, grammarIds } = await sessionService.selectSmartItems(
+        this.questionCount
+      )
+
+      // 2. Generate questions từ AI
+      const questions = await this.generateQuestionsWithAI(vocabularyIds, grammarIds)
 
       if (questions.length === 0) {
         console.warn('[AutoSessionService] ⚠️ No questions generated')
         return
       }
 
-      console.log('[AutoSessionService] ✅ Generated questions:', questions.length)
-
-      // 🔥 Lưu session vào cloud database
-      console.log('[AutoSessionService] 💾 Saving session to cloud database...')
+      // 3. Lưu session vào cloud database
       const session = await sessionService.createSession(questions, this.sessionExpiryHours)
 
-      console.log('[AutoSessionService] ✅ Session saved:', {
-        session_id: session.id,
-        question_count: questions.length,
-        expires_at: new Date(session.expires_at).toLocaleString('vi-VN')
-      })
-
       // Hiển thị popup window nếu behavior là 'surprise'
-      const configStr = await window.api.storage.get('auto_session_config')
-      const config = configStr || {}
+      if (!window.api) {
+        console.warn('[AutoSessionService] ⚠️ window.api not available')
+      } else {
+        const configStr = await window.api.storage.get('auto_session_config')
+        const config = configStr || {}
 
-      if (config.popup_behavior === 'surprise') {
-        console.log('[AutoSessionService] 🚀 Showing surprise popup window...')
-        await window.api.popup.showSession(session)
+        if (config.popup_behavior === 'surprise') {
+          await window.api.popup.showSession(session)
+        }
       }
 
       this.onSessionCreated?.(session)
-
-      const duration = Date.now() - startTime
-      console.log('[AutoSessionService] ✅ Session created successfully:', {
-        session_id: session.id,
-        duration_ms: duration,
-        next_run_in: `${this.intervalMinutes} minutes`
-      })
     } catch (error) {
       console.error('[AutoSessionService] Error creating auto session:', error)
     }
@@ -117,44 +93,40 @@ export class AutoSessionService {
     grammarIds: string[]
   ): Promise<Question[]> {
     try {
-      console.log('[AutoSessionService] 🤖 Fetching API keys...')
-      const apiKeysStr = localStorage.getItem('gemini_api_keys')
+      if (!window.api) {
+        console.error('[AutoSessionService] ❌ window.api not available')
+        return []
+      }
+
+      const apiKeysStr = await window.api.storage.get('gemini_api_keys')
       if (!apiKeysStr) {
         console.warn('[AutoSessionService] ⚠️ No Gemini API keys found')
         return []
       }
 
-      const apiKeys = JSON.parse(apiKeysStr)
+      let apiKeys: any
+      if (typeof apiKeysStr === 'string') {
+        apiKeys = JSON.parse(apiKeysStr)
+      } else {
+        apiKeys = apiKeysStr
+      }
+
       if (!Array.isArray(apiKeys) || apiKeys.length === 0) {
         console.warn('[AutoSessionService] ⚠️ No valid API keys available')
         return []
       }
 
       const selectedKey = apiKeys[0]
-      console.log('[AutoSessionService] ✅ Using API key:', {
-        name: selectedKey.name,
-        key_preview: selectedKey.key.substring(0, 10) + '...'
-      })
 
       const service = createCreateCollectionService(selectedKey.key)
       const prompt = this.buildQuestionsPrompt()
 
-      console.log('[AutoSessionService] 📤 Sending prompt to Gemini API...')
-      console.log('[AutoSessionService] 📝 Prompt preview:', prompt.substring(0, 200) + '...')
-
       const textResponse = await service.generateQuestions(prompt)
-
-      console.log('[AutoSessionService] 📥 Received response from API')
-      console.log(
-        '[AutoSessionService] 📝 Response preview:',
-        textResponse.substring(0, 300) + '...'
-      )
 
       // Parse JSON từ response
       const jsonMatch = textResponse.match(/```json\n([\s\S]*?)\n```/)
       const jsonText = jsonMatch ? jsonMatch[1] : textResponse
 
-      console.log('[AutoSessionService] 🔍 Parsing JSON...')
       const parsed = JSON.parse(jsonText)
 
       if (!parsed.questions || !Array.isArray(parsed.questions)) {
@@ -162,27 +134,43 @@ export class AutoSessionService {
         return []
       }
 
-      console.log('[AutoSessionService] ✅ Successfully parsed questions:', parsed.questions.length)
-
       const questions: Question[] = parsed.questions.map((q: any, index: number) => {
+        // Tính scores dựa trên difficulty_level
+        const baseScore = q.difficulty_level * 10
+        const scores: [number, number, number, number, number, number] = [
+          baseScore + 20, // Rất nhanh (<30% time_limit)
+          baseScore + 15, // Nhanh (<50% time_limit)
+          baseScore + 10, // Trung bình (<70% time_limit)
+          baseScore + 5, // Hơi chậm (<85% time_limit)
+          baseScore, // Chậm (<100% time_limit)
+          Math.floor(baseScore * 0.5) // Quá thời gian (>100% time_limit)
+        ]
+
+        // Tính time_limit dựa trên difficulty_level và question_type
+        const baseTime = 30 // 30 seconds
+        const typeMultiplier = [
+          'translate',
+          'grammar_transformation',
+          'reverse_translation'
+        ].includes(q.question_type)
+          ? 2
+          : 1
+        const timeLimit = baseTime + q.difficulty_level * 5 * typeMultiplier
+
         const question: Question = {
           ...q,
-          id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          id: `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${index}`,
           created_at: new Date().toISOString(),
           difficulty_level: q.difficulty_level || 5,
-          vocabulary_item_ids: vocabularyIds.slice(0, 2),
-          grammar_points: grammarIds.slice(0, 2)
+          vocabulary_item_ids: vocabularyIds.length > 0 ? vocabularyIds.slice(0, 2) : [],
+          grammar_points: grammarIds.length > 0 ? grammarIds.slice(0, 2) : [],
+          scores: scores,
+          time_limit: timeLimit
         }
-
-        console.log(`[AutoSessionService] 📋 Question ${index + 1}:`, {
-          type: question.question_type,
-          difficulty: question.difficulty_level
-        })
 
         return question
       })
 
-      console.log(`[AutoSessionService] ✅ Generated ${questions.length} questions from AI`)
       return questions
     } catch (error) {
       console.error('[AutoSessionService] ❌ Error generating questions:', error)

@@ -61,11 +61,9 @@ const SessionSection = () => {
         return
       }
 
-      console.log('[SessionSection] 💾 Saving config:', config)
       await window.api.storage.set('auto_session_config', config)
 
       setSaveStatus('success')
-      console.log('[SessionSection] ✅ Config saved, reloading app...')
 
       setTimeout(() => {
         window.location.reload()
@@ -82,7 +80,6 @@ const SessionSection = () => {
     try {
       setIsTestRunning(true)
       setTestCountdown(10)
-      console.log('[SessionSection] 🧪 Test mode: Creating session in 10 seconds...')
 
       // Countdown timer
       const countdownInterval = setInterval(() => {
@@ -146,11 +143,8 @@ const SessionSection = () => {
       const questionsKey = `session_questions_${testSession.id}`
       localStorage.setItem(questionsKey, JSON.stringify(mockQuestions))
 
-      console.log('[SessionSection] ✅ Test session created:', testSession.id)
-
       // Hiển thị popup dựa trên config
       if (config.popup_behavior === 'surprise') {
-        console.log('[SessionSection] 🎉 Opening surprise popup window...')
         if (!window.api) {
           console.error('[SessionSection] window.api is not available')
           alert('❌ window.api không khả dụng')
@@ -158,17 +152,14 @@ const SessionSection = () => {
         }
         const result = await window.api.popup.showSession(testSession)
         if (result.success) {
-          console.log('[SessionSection] ✅ Popup window opened successfully')
         } else {
           console.error('[SessionSection] ❌ Failed to open popup:', result.error)
           alert('❌ Failed to open popup window. Check console.')
         }
       } else if (config.popup_behavior === 'notification') {
-        console.log('[SessionSection] 🔔 Showing notification (modal)...')
         setTestSession(testSession)
         setShowTestPopup(true)
       } else {
-        console.log('[SessionSection] 🤫 Silent mode - no popup shown')
         alert('✅ Test session created silently. Check Dashboard.')
       }
     } catch (error) {

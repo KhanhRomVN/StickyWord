@@ -21,8 +21,6 @@ export class SessionStorageService {
       }
 
       await window.api.storage.set(SESSION_STORAGE_KEY, sessions)
-
-      console.log('[SessionStorageService] ✅ Session saved to localStorage:', session.id)
     } catch (error) {
       console.error('[SessionStorageService] ❌ Error saving session:', error)
       throw error
@@ -38,23 +36,37 @@ export class SessionStorageService {
     try {
       const query = `
       INSERT INTO sessions (
-        id, title, questions, status, created_at,
-        expires_at, difficulty_level, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        id, title, description, questions, status, created_at, completed_at,
+        expires_at, difficulty_level, total_time_spent, total_score, accuracy_rate,
+        attempts_allowed, target_language, source_language, topics, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       ON CONFLICT (id) DO UPDATE SET
         questions = EXCLUDED.questions,
         status = EXCLUDED.status,
+        completed_at = EXCLUDED.completed_at,
+        total_time_spent = EXCLUDED.total_time_spent,
+        total_score = EXCLUDED.total_score,
+        accuracy_rate = EXCLUDED.accuracy_rate,
         updated_at = EXCLUDED.updated_at
     `
 
       const params = [
         session.id,
         session.title,
+        session.description || null,
         JSON.stringify(session.questions),
         session.status,
         session.created_at,
+        session.completed_at || null,
         session.expires_at || null,
         session.difficulty_level,
+        session.total_time_spent || null,
+        session.total_score || null,
+        session.accuracy_rate || null,
+        session.attempts_allowed,
+        session.target_language,
+        session.source_language,
+        JSON.stringify(session.topics),
         new Date().toISOString()
       ]
 
@@ -63,8 +75,6 @@ export class SessionStorageService {
       if (!result.success) {
         throw new Error(result.error || 'Failed to save session to cloud')
       }
-
-      console.log('[SessionStorageService] ✅ Session saved to cloud database:', session.id)
     } catch (error) {
       console.error('[SessionStorageService] ❌ Error saving session to cloud:', error)
       throw error
@@ -132,8 +142,6 @@ export class SessionStorageService {
 
       sessions[index] = { ...sessions[index], ...updates }
       await window.api.storage.set(SESSION_STORAGE_KEY, sessions)
-
-      console.log('[SessionStorageService] ✅ Session updated:', sessionId)
     } catch (error) {
       console.error('[SessionStorageService] ❌ Error updating session:', error)
       throw error
@@ -155,8 +163,6 @@ export class SessionStorageService {
       // 2. Xóa questions
       const storageKey = `${QUESTIONS_STORAGE_PREFIX}${sessionId}`
       await window.api.storage.remove(storageKey)
-
-      console.log('[SessionStorageService] ✅ Session deleted:', sessionId)
     } catch (error) {
       console.error('[SessionStorageService] ❌ Error deleting session:', error)
       throw error

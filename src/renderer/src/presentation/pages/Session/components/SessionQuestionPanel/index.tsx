@@ -37,20 +37,37 @@ const SessionQuestionPanel = ({
 }: SessionQuestionPanelProps) => {
   const [userAnswer, setUserAnswer] = useState('')
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [startTime, setStartTime] = useState<number>(Date.now())
+  const [timeSpent, setTimeSpent] = useState<number>(0)
 
   // Reset khi chuyển câu hỏi
   useEffect(() => {
     if (question.user_answer !== undefined) {
       setUserAnswer(question.user_answer)
       setIsSubmitted(true)
+      setTimeSpent(question.time_spent || 0)
     } else if (existingAnswer) {
       setUserAnswer(existingAnswer.userAnswer)
       setIsSubmitted(true)
+      setTimeSpent(0)
     } else {
       setUserAnswer('')
       setIsSubmitted(false)
+      setStartTime(Date.now())
+      setTimeSpent(0)
     }
   }, [question.id, question.user_answer, existingAnswer])
+
+  // Timer để track thời gian
+  useEffect(() => {
+    if (isSubmitted) return
+
+    const interval = setInterval(() => {
+      setTimeSpent(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [isSubmitted, startTime])
 
   const checkAnswerCorrectness = (q: Question, answer: string): boolean => {
     if (!answer) return false
@@ -143,7 +160,14 @@ const SessionQuestionPanel = ({
   const handleSubmitAnswer = () => {
     if (!userAnswer) return
 
+    if (!question.id) {
+      console.error('[SessionQuestionPanel] ❌ question.id is undefined!', question)
+      return
+    }
+
     const isCorrect = checkAnswerCorrectness(question, userAnswer)
+    const finalTimeSpent = Math.floor((Date.now() - startTime) / 1000)
+    ;(question as any).time_spent = finalTimeSpent
     onAnswerSubmit(question.id, userAnswer, isCorrect)
     setIsSubmitted(true)
   }
@@ -263,7 +287,7 @@ const SessionQuestionPanel = ({
     <div className="h-full overflow-y-auto bg-background">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border-default p-6">
         <div className="flex items-center justify-between">
-          <div>
+          <div className="flex-1">
             <h2 className="text-2xl font-bold text-text-primary flex items-center gap-2">
               Câu {questionIndex + 1}
               {existingAnswer && (
@@ -278,6 +302,18 @@ const SessionQuestionPanel = ({
                 </span>
               )}
             </h2>
+            {!isSubmitted && (
+              <div className="mt-2 flex items-center gap-4 text-sm text-text-secondary">
+                <span>
+                  ⏱️ Thời gian: {Math.floor(timeSpent / 60)}:
+                  {(timeSpent % 60).toString().padStart(2, '0')}
+                </span>
+                <span>
+                  🎯 Giới hạn: {Math.floor(question.time_limit / 60)}:
+                  {(question.time_limit % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+            )}
           </div>
 
           {isSubmitted && (

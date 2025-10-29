@@ -24,7 +24,6 @@ const CollectionDetailPanel = ({ selectedItem, onItemDeleted }: CollectionDetail
       const deletedCount = await db.deleteItem(itemId)
 
       if (deletedCount > 0) {
-        console.log('[CollectionDetailPanel] Item deleted successfully:', itemId)
         // Notify parent component
         onItemDeleted?.(itemId)
       } else {

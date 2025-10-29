@@ -47,22 +47,23 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
           const success = await testConnection(savedConnectionString)
 
           if (success) {
-            // ✅ Khởi tạo singleton instance cho CloudDatabaseService
             const { setCloudDatabase } = await import('../../services/CloudDatabaseService')
             setCloudDatabase(savedConnectionString)
 
             setConnectionString(savedConnectionString)
             setIsConnected(true)
             setError(null)
-            console.log('[DatabaseProvider] Cloud database instance initialized')
           } else {
-            await window.api.storage.remove(STORAGE_KEY)
-            setError('Kết nối đã lưu không hợp lệ')
+            console.warn(
+              '[DatabaseProvider] ⚠️ Saved connection invalid, NOT removing from storage'
+            )
+            // ✅ KHÔNG xóa khi test fail, có thể do lỗi network tạm thời
+            setError('Không thể kết nối đến database. Vui lòng kiểm tra lại trong Settings.')
           }
         }
       }
     } catch (err) {
-      console.error('[DatabaseProvider] Error checking saved connection:', err)
+      console.error('[DatabaseProvider] ❌ Error checking saved connection:', err)
       setError('Lỗi khi kiểm tra kết nối đã lưu')
     } finally {
       setIsLoading(false)
@@ -82,7 +83,6 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
           console.error('[DatabaseProvider] Main process connection failed')
           return false
         }
-        console.log('[DatabaseProvider] Connection successful, schema ready')
       }
 
       return isConnected
@@ -114,7 +114,6 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
         setConnectionString(connString)
         setIsConnected(true)
         await window.api.storage.set(STORAGE_KEY, { connectionString: connString })
-        console.log('[DatabaseProvider] Cloud database instance initialized')
         return true
       } else {
         setError('Không thể kết nối đến database')

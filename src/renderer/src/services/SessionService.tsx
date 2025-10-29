@@ -67,19 +67,38 @@ export class SessionService {
     const now = new Date()
     const expiresAt = new Date(now.getTime() + expiryHours * 60 * 60 * 1000)
 
+    // Tính toán total_score từ questions
+    const totalScore = questions.reduce((sum, q) => sum + q.scores[0], 0) // Lấy điểm cao nhất
+
+    // Trích xuất topics từ questions (nếu có)
+    const topicsSet = new Set<string>()
+    questions.forEach((q) => {
+      if (q.vocabulary_item_ids) {
+        topicsSet.add('vocabulary')
+      }
+      if (q.grammar_points) {
+        topicsSet.add('grammar')
+      }
+    })
+
     const session: Session = {
       id: sessionId,
       title: `Auto Session ${new Date().toLocaleString('vi-VN')}`,
+      description: `Session gồm ${questions.length} câu hỏi`,
       questions: questions,
       status: 'pending',
       created_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
-      difficulty_level: questions.reduce((sum, q) => sum + q.difficulty_level, 0) / questions.length
+      difficulty_level:
+        questions.reduce((sum, q) => sum + q.difficulty_level, 0) / questions.length,
+      total_score: totalScore,
+      attempts_allowed: 1,
+      target_language: 'en',
+      source_language: 'vi',
+      topics: Array.from(topicsSet)
     }
 
     await storageService.saveSession(session)
-
-    console.log('[SessionService] ✅ Session created in localStorage:', sessionId)
     return session
   }
 
@@ -99,8 +118,6 @@ export class SessionService {
 
     await storageService.updateSession(sessionId, updatedSession)
     await storageService.saveSessionToCloud(updatedSession)
-
-    console.log('[SessionService] ✅ Session completed and saved to cloud:', sessionId)
   }
 
   /**
@@ -135,11 +152,20 @@ export class SessionService {
     return result.rows.map((row) => ({
       id: row.id,
       title: row.title || `Session ${row.id.substring(0, 8)}`,
+      description: row.description || '',
       questions: Array.isArray(row.questions) ? row.questions : [],
       status: row.status || 'pending',
       created_at: row.created_at,
+      completed_at: row.completed_at,
       expires_at: row.expires_at,
-      difficulty_level: row.difficulty_level || 5
+      difficulty_level: row.difficulty_level || 5,
+      total_time_spent: row.total_time_spent,
+      total_score: row.total_score,
+      accuracy_rate: row.accuracy_rate,
+      attempts_allowed: row.attempts_allowed || 1,
+      target_language: row.target_language || 'en',
+      source_language: row.source_language || 'vi',
+      topics: Array.isArray(row.topics) ? row.topics : []
     }))
   }
 }

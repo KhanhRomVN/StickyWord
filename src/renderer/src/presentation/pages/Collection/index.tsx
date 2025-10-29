@@ -27,7 +27,6 @@ const CollectionPage = () => {
   }, [location.pathname])
 
   const handleItemDeleted = async (itemId: string) => {
-    console.log('[CollectionPage] Item deleted:', itemId)
     setSelectedItem(null)
     // Trigger reload in CollectionListPanel by re-rendering
     window.dispatchEvent(new CustomEvent('item-deleted', { detail: { itemId } }))

@@ -406,17 +406,10 @@ export class CloudDatabaseService {
 let cloudDatabaseInstance: CloudDatabaseService | null = null
 
 export const getCloudDatabase = (): CloudDatabaseService | null => {
-  console.log('[CloudDatabaseService] 🔍 Getting instance:', {
-    hasInstance: cloudDatabaseInstance !== null
-  })
   return cloudDatabaseInstance
 }
 
 export const setCloudDatabase = (connectionString: string): CloudDatabaseService => {
   cloudDatabaseInstance = new CloudDatabaseService(connectionString)
-  console.log('[CloudDatabaseService] ✅ Singleton instance created:', {
-    hasInstance: cloudDatabaseInstance !== null,
-    connectionString: connectionString.substring(0, 30) + '...'
-  })
   return cloudDatabaseInstance
 }

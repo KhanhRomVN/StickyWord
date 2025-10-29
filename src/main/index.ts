@@ -105,15 +105,23 @@ function setupStorageHandlers() {
       }
 
       const fileContent = fs.readFileSync(storagePath, 'utf8')
+
+      // ✅ Kiểm tra file rỗng hoặc invalid
+      if (!fileContent || fileContent.trim().length === 0) {
+        console.warn(`[storage:get] Empty file for key: ${key}`)
+        return null
+      }
+
       try {
         const data = JSON.parse(fileContent)
-        return data[key] || null
+        const result = data[key] || null
+        return result
       } catch (parseError) {
-        console.warn('Failed to parse storage file')
+        console.error(`[storage:get] Failed to parse storage file for key: ${key}`, parseError)
         return null
       }
     } catch (error) {
-      console.error('Error getting storage value:', error)
+      console.error(`[storage:get] Error getting storage value for key: ${key}`, error)
       return null
     }
   })
@@ -152,11 +160,20 @@ async function initializeCloudDatabaseSchema() {
       `CREATE TABLE IF NOT EXISTS sessions (
         id TEXT PRIMARY KEY,
         title TEXT,
+        description TEXT,
         questions JSONB NOT NULL DEFAULT '[]'::jsonb,
         status TEXT NOT NULL CHECK (status IN ('pending', 'completed')) DEFAULT 'pending',
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        completed_at TIMESTAMP,
         expires_at TIMESTAMP,
         difficulty_level INTEGER CHECK (difficulty_level BETWEEN 1 AND 10),
+        total_time_spent INTEGER,
+        total_score INTEGER,
+        accuracy_rate NUMERIC(5,2),
+        attempts_allowed INTEGER NOT NULL DEFAULT 1,
+        target_language TEXT NOT NULL DEFAULT 'en',
+        source_language TEXT NOT NULL DEFAULT 'vi',
+        topics JSONB DEFAULT '[]'::jsonb,
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
       // === VOCABULARY TABLES ===
@@ -291,7 +308,6 @@ async function initializeCloudDatabaseSchema() {
       await cloudDbPool.query(query)
     }
 
-    console.log('[initializeCloudDatabaseSchema] Schema created successfully')
     return { success: true }
   } catch (error) {
     console.error('[initializeCloudDatabaseSchema] Error:', error)
@@ -338,14 +354,11 @@ function setupCloudDatabaseHandlers() {
       await cloudDbPool.query('SELECT 1')
 
       // Auto-initialize schema after successful connection
-      console.log('[cloud-db:connect] Connection successful, initializing schema...')
       const initResult = await initializeCloudDatabaseSchema()
 
       if (!initResult.success) {
         console.warn('[cloud-db:connect] Schema initialization warning:', initResult.error)
         // Don't fail connection if schema already exists
-      } else {
-        console.log('[cloud-db:connect] Schema initialized successfully')
       }
 
       return { success: true }
