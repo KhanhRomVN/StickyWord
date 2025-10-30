@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { grammar_item } from '../../../types/grammar'
 import CustomInput from '../../../../../../components/common/CustomInput'
 import CustomCombobox from '../../../../../../components/common/CustomCombobox'
@@ -56,6 +56,10 @@ const GRAMMAR_ITEM_TYPES = [
 
 const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) => {
   const [currentItem, setCurrentItem] = useState<grammar_item>(item)
+
+  useEffect(() => {
+    setCurrentItem(item)
+  }, [item])
 
   const getInitialDefinitions = (): Definition[] => {
     if (currentItem.metadata?.definitions && Array.isArray(currentItem.metadata.definitions)) {
@@ -125,6 +129,26 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
   const [definitionsExpanded, setDefinitionsExpanded] = useState(false)
   const [examplesExpanded, setExamplesExpanded] = useState(false)
   const [mistakesExpanded, setMistakesExpanded] = useState(false)
+
+  // ✅ FIX: Đồng bộ formData khi currentItem thay đổi
+  useEffect(() => {
+    setFormData({
+      title: currentItem.title,
+      item_type: currentItem.item_type,
+      definitions: getInitialDefinitions(),
+      examples: getInitialExamples(),
+      commonMistakes: getInitialCommonMistakes(),
+      difficulty_level: currentItem.difficulty_level || 0,
+      frequency_rank: currentItem.frequency_rank || 0,
+      category: currentItem.category || '',
+      tags: currentItem.tags || [],
+      metadata: currentItem.metadata || {}
+    })
+    setEditingFields({})
+    setDefinitionsExpanded(false)
+    setExamplesExpanded(false)
+    setMistakesExpanded(false)
+  }, [currentItem.id])
 
   const handleDelete = () => {
     if (confirm(`Bạn có chắc chắn muốn xóa điểm ngữ pháp "${currentItem.title}" này không?`)) {

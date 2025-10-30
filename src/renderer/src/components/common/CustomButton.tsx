@@ -25,10 +25,14 @@ const CustomButton: React.FC<CustomButtonProps> = ({
   disabled,
   ...props
 }) => {
+  // Kiểm tra xem button có text hay không
+  const hasText = children !== undefined && children !== null && children !== ''
+
   const baseStyles = `
-    inline-flex items-center gap-2 rounded-md font-normal 
+    inline-flex items-center rounded-md font-normal 
     transition-all duration-200 focus:outline-none
     disabled:opacity-50 disabled:cursor-not-allowed
+    ${hasText ? 'gap-2' : 'gap-0'}
   `
 
   const alignStyles = {
@@ -37,25 +41,56 @@ const CustomButton: React.FC<CustomButtonProps> = ({
     right: 'justify-end text-right'
   }
 
-  const sizeStyles = {
+  // Size styles khi có text
+  const sizeStylesWithText = {
     sm: 'px-3 py-2 text-sm h-[38px]',
     md: 'px-4 py-3 text-base h-[48px]',
     lg: 'px-5 py-4 text-lg h-[56px]'
   }
 
-  // Icon sizes based on button size
-  const iconSizes = {
+  // Size styles khi chỉ có icon (width = height)
+  const sizeStylesIconOnly = {
+    sm: 'p-2 text-sm w-[38px] h-[38px]',
+    md: 'p-3 text-base w-[48px] h-[48px]',
+    lg: 'p-4 text-lg w-[56px] h-[56px]'
+  }
+
+  // Chọn size phù hợp
+  const sizeStyles = hasText ? sizeStylesWithText : sizeStylesIconOnly
+
+  // Icon sizes based on button size (có text)
+  const iconSizesWithText = {
     sm: 'h-3 w-3',
     md: 'h-4 w-4',
     lg: 'h-5 w-5'
   }
 
-  // Emoji sizes based on button size
-  const emojiSizes = {
+  // Icon sizes khi chỉ có icon (không có text) - tăng size để vừa button
+  const iconSizesIconOnly = {
+    sm: 'h-4 w-4',
+    md: 'h-6 w-6',
+    lg: 'h-7 w-7'
+  }
+
+  // Chọn size phù hợp
+  const iconSizes = hasText ? iconSizesWithText : iconSizesIconOnly
+
+  // Emoji sizes based on button size (có text)
+  const emojiSizesWithText = {
     sm: 'h-3 w-3',
     md: 'h-4 w-4',
     lg: 'h-5 w-5'
   }
+
+  // Emoji sizes khi chỉ có emoji (không có text) - tăng size để vừa button
+  const emojiSizesIconOnly = {
+    sm: 'h-4 w-4',
+    md: 'h-6 w-6',
+    lg: 'h-7 w-7'
+  }
+
+  // Chọn size phù hợp
+  const emojiSizes = hasText ? emojiSizesWithText : emojiSizesIconOnly
 
   const variantStyles = {
     primary: `

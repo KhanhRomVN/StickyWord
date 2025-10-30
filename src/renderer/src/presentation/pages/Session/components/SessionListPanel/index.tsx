@@ -108,20 +108,43 @@ const SessionListPanel = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="flex-shrink-0 border-t border-border-default p-4 space-y-2">
-        <CustomButton
-          variant="primary"
-          size="sm"
-          icon={Send}
-          disabled={stats.answered < stats.total}
-          onClick={() => console.log('Nộp bài')}
-        >
-          Nộp bài
-        </CustomButton>
+      <div className="flex-shrink-0 border-t border-border-default p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-text-secondary">
+            <span className="font-medium text-text-primary">{stats.answered}</span>/{stats.total}{' '}
+            câu đã hoàn thành
+          </div>
 
-        <CustomButton variant="ghost" size="sm" icon={X} onClick={() => console.log('Hủy')}>
-          Hủy
-        </CustomButton>
+          <div className="flex items-center gap-2">
+            <CustomButton
+              variant="ghost"
+              size="sm"
+              icon={X}
+              onClick={() => {
+                if (confirm('Bạn có chắc chắn muốn hủy session này?')) {
+                  window.history.back()
+                }
+              }}
+            >
+              Hủy
+            </CustomButton>
+
+            <CustomButton
+              variant="primary"
+              size="sm"
+              icon={Send}
+              disabled={stats.answered < stats.total}
+              onClick={() => {
+                if (stats.answered === stats.total) {
+                  window.dispatchEvent(new CustomEvent('all-questions-completed'))
+                }
+              }}
+              className="whitespace-nowrap"
+            >
+              Nộp bài
+            </CustomButton>
+          </div>
+        </div>
       </div>
     </div>
   )

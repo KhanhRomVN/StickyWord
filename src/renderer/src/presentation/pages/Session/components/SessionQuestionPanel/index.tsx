@@ -32,6 +32,7 @@ interface SessionQuestionPanelProps {
 const SessionQuestionPanel = ({
   question,
   questionIndex,
+  totalQuestions,
   onAnswerSubmit,
   existingAnswer
 }: SessionQuestionPanelProps) => {
@@ -317,14 +318,34 @@ const SessionQuestionPanel = ({
           </div>
 
           {isSubmitted && (
-            <CustomButton
-              variant="primary"
-              size="sm"
-              icon={existingAnswer ? Check : ArrowRight}
-              disabled
-            >
-              {existingAnswer ? 'Đã trả lời' : 'Tiếp tục'}
-            </CustomButton>
+            <div className="flex gap-2">
+              {questionIndex < totalQuestions - 1 && (
+                <CustomButton
+                  variant="primary"
+                  size="sm"
+                  icon={ArrowRight}
+                  onClick={() => {
+                    if (questionIndex < totalQuestions - 1) {
+                      window.dispatchEvent(new CustomEvent('navigate-next-question'))
+                    }
+                  }}
+                >
+                  Next Question
+                </CustomButton>
+              )}
+              {questionIndex === totalQuestions - 1 && (
+                <CustomButton
+                  variant="success"
+                  size="sm"
+                  icon={Check}
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('all-questions-completed'))
+                  }}
+                >
+                  Hoàn thành
+                </CustomButton>
+              )}
+            </div>
           )}
         </div>
       </div>

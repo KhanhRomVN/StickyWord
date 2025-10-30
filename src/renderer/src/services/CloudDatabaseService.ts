@@ -89,6 +89,36 @@ export class CloudDatabaseService {
       for (const def of definitions) {
         const defId = `def_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
+        // ✅ FIX: Validate và normalize word_type/phrase_type
+        let validWordType = null
+        let validPhraseType = null
+
+        const validWordTypes = [
+          'noun',
+          'verb',
+          'adjective',
+          'adverb',
+          'pronoun',
+          'preposition',
+          'conjunction',
+          'interjection',
+          'determiner',
+          'exclamation'
+        ]
+        const validPhraseTypes = ['idiom', 'phrasal_verb', 'collocation', 'slang', 'expression']
+
+        if (def.wordType && validWordTypes.includes(def.wordType)) {
+          validWordType = def.wordType
+        }
+        if (def.phraseType && validPhraseTypes.includes(def.phraseType)) {
+          validPhraseType = def.phraseType
+        }
+
+        // ✅ Nếu wordType không hợp lệ nhưng là "phrase", chuyển sang phraseType
+        if (def.wordType === 'phrase' && !validPhraseType) {
+          validPhraseType = 'expression' // default fallback
+        }
+
         const defQuery = `
         INSERT INTO definition (
           id, vocabulary_item_id, meaning, translation, word_type, phrase_type, created_at

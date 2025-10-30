@@ -300,8 +300,7 @@ async function initializeCloudDatabaseSchema() {
       `CREATE INDEX IF NOT EXISTS idx_grammar_relation ON grammar_relation(grammar_item_id)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_analytics ON grammar_analytics(grammar_item_id)`,
       `CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
-      `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
-      `CREATE INDEX IF NOT EXISTS idx_question_answers_session ON question_answers(session_id)`
+      `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`
     ]
 
     for (const query of queries) {

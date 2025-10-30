@@ -32,29 +32,14 @@ const menuItems: MenuItem[] = [
   {
     icon: BookOpen,
     label: 'Collection',
-    description: 'Quản lý từ vựng',
-    submenu: [
-      {
-        label: 'Words',
-        href: '/collection/words',
-        icon: Database
-      },
-      {
-        label: 'Phrases',
-        href: '/collection/phrases',
-        icon: FileText
-      },
-      {
-        label: 'Grammar',
-        href: '/collection/grammar',
-        icon: Tag
-      }
-    ]
+    href: '/collections',
+    description: 'Quản lý từ vựng'
   },
   {
     icon: Settings,
     label: 'Settings',
     href: '/settings',
+
     description: 'Cài đặt ứng dụng'
   }
 ]

@@ -23,6 +23,29 @@ const SessionPage = () => {
 
   const currentQuestion = questions[currentQuestionIndex]
 
+  // ✅ Listen for next question navigation
+  useEffect(() => {
+    const handleNextQuestion = () => {
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(currentQuestionIndex + 1)
+      }
+    }
+
+    const handleAllCompleted = async () => {
+      const allAnswers = answers
+      const finalQuestions = questions
+      await handleCompleteSession(allAnswers, finalQuestions)
+    }
+
+    window.addEventListener('navigate-next-question', handleNextQuestion)
+    window.addEventListener('all-questions-completed', handleAllCompleted)
+
+    return () => {
+      window.removeEventListener('navigate-next-question', handleNextQuestion)
+      window.removeEventListener('all-questions-completed', handleAllCompleted)
+    }
+  }, [currentQuestionIndex, questions, answers])
+
   useEffect(() => {
     const loadQuestions = async () => {
       try {
@@ -83,21 +106,42 @@ const SessionPage = () => {
 
     const updatedQuestions = questions.map((q) => {
       if (q.id === questionId) {
-        return { ...q, user_answer: userAnswer, is_correct: isCorrect }
+        // ✅ Tính score_earn dựa trên time_spent và time_limit
+        let scoreEarn = 0
+        if (isCorrect && q.time_spent && q.time_limit) {
+          const timeRatio = q.time_spent / q.time_limit
+          let scoreIndex = 0
+
+          if (timeRatio <= 0.3)
+            scoreIndex = 0 // Rất nhanh
+          else if (timeRatio <= 0.5)
+            scoreIndex = 1 // Nhanh
+          else if (timeRatio <= 0.7)
+            scoreIndex = 2 // Trung bình
+          else if (timeRatio <= 0.85)
+            scoreIndex = 3 // Hơi chậm
+          else if (timeRatio <= 1.0)
+            scoreIndex = 4 // Chậm
+          else scoreIndex = 5 // Quá thời gian
+
+          scoreEarn = q.scores[scoreIndex]
+        }
+
+        return { ...q, user_answer: userAnswer, is_correct: isCorrect, score_earn: scoreEarn }
       }
       return q
     })
 
     setQuestions(updatedQuestions)
-    const totalAnswered = answers.length + 1
-    if (totalAnswered === questions.length) {
-      handleCompleteSession([...answers, newAnswer], updatedQuestions)
+
+    // ✅ Tự động chuyển sang câu tiếp theo (nếu còn)
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(currentQuestionIndex + 1)
     }
   }
 
   const handleCompleteSession = async (allAnswers: SessionAnswer[], finalQuestions: Question[]) => {
     try {
-      // 1. Lưu session với questions đã có answers vào localStorage
       const { getSessionStorageService } = await import('../../../services/SessionStorageService')
       const storageService = getSessionStorageService()
       const session = await storageService.getSessionById(sessionId || '')
@@ -107,7 +151,13 @@ const SessionPage = () => {
         return
       }
 
-      // Tính toán các metrics
+      // ✅ BƯỚC 1: Xử lý câu sai và gửi prompt cho Gemini TRƯỚC
+      const incorrectAnswers = allAnswers.filter((a) => !a.isCorrect)
+      if (incorrectAnswers.length > 0) {
+        await handleIncorrectAnswers(incorrectAnswers, finalQuestions)
+      }
+
+      // ✅ BƯỚC 2: Tính toán các metrics SAU KHI xử lý xong Gemini
       const correctCount = allAnswers.filter((a) => a.isCorrect).length
       const totalCount = allAnswers.length
       const accuracyRate = Math.round((correctCount / totalCount) * 100)
@@ -115,27 +165,8 @@ const SessionPage = () => {
       // Tính total_time_spent từ questions
       const totalTimeSpent = finalQuestions.reduce((sum, q) => sum + (q.time_spent || 0), 0)
 
-      // Tính total_score dựa trên scores và time_spent
-      const totalScore = finalQuestions.reduce((sum, q) => {
-        if (!q.is_correct || !q.time_spent || !q.time_limit) return sum
-
-        const timeRatio = q.time_spent / q.time_limit
-        let scoreIndex = 0
-
-        if (timeRatio <= 0.3)
-          scoreIndex = 0 // Rất nhanh
-        else if (timeRatio <= 0.5)
-          scoreIndex = 1 // Nhanh
-        else if (timeRatio <= 0.7)
-          scoreIndex = 2 // Trung bình
-        else if (timeRatio <= 0.85)
-          scoreIndex = 3 // Hơi chậm
-        else if (timeRatio <= 1.0)
-          scoreIndex = 4 // Chậm
-        else scoreIndex = 5 // Quá thời gian
-
-        return sum + q.scores[scoreIndex]
-      }, 0)
+      // ✅ Tính total_score từ score_earn
+      const totalScore = finalQuestions.reduce((sum, q) => sum + (q.score_earn || 0), 0)
 
       const completedSession = {
         ...session,
@@ -147,20 +178,13 @@ const SessionPage = () => {
         accuracy_rate: accuracyRate
       }
 
+      // ✅ BƯỚC 3: Lưu session vào localStorage
       await storageService.updateSession(sessionId || '', completedSession)
 
-      // 2. Đồng bộ lên cloud database
-      const { getSessionService } = await import('../../../services/SessionService')
-      const sessionService = getSessionService()
-      await sessionService.completeSession(sessionId || '')
+      // ✅ BƯỚC 4: Đồng bộ lên cloud database
+      await storageService.saveSessionToCloud(completedSession)
 
-      // 3. Xử lý các câu trả lời sai → tạo collection
-      const incorrectAnswers = allAnswers.filter((a) => !a.isCorrect)
-      if (incorrectAnswers.length > 0) {
-        await handleIncorrectAnswers(incorrectAnswers, finalQuestions)
-      }
-
-      // 4. Hiển thị thông báo hoàn thành
+      // ✅ BƯỚC 5: Hiển thị thông báo hoàn thành
       alert(
         `🎉 Hoàn thành session!\n\n` +
           `✅ Đúng: ${correctCount}/${totalCount}\n` +
@@ -203,15 +227,36 @@ const SessionPage = () => {
 
       const prompt = buildCollectionPrompt(incorrectQuestions)
 
+      // ✅ LOG: In ra prompt gửi cho Gemini khi xử lý incorrect answers
+      console.log('[handleIncorrectAnswers] 📤 Prompt gửi cho Gemini API:')
+      console.log('='.repeat(80))
+      console.log(prompt)
+      console.log('='.repeat(80))
+
       const { createCreateCollectionService } = await import(
         '../../../presentation/pages/Collection/services/CreateCollectionService'
       )
       const service = createCreateCollectionService(selectedKey.key)
       const aiResponse = await service.generateQuestions(prompt)
 
+      // ✅ LOG: In ra raw response từ Gemini
+      console.log('[handleIncorrectAnswers] 📥 Raw response từ Gemini API:')
+      console.log('='.repeat(80))
+      console.log(aiResponse)
+      console.log('='.repeat(80))
+
       const jsonMatch = aiResponse.match(/```json\n([\s\S]*?)\n```/)
       const jsonText = jsonMatch ? jsonMatch[1] : aiResponse
       const parsed = JSON.parse(jsonText)
+
+      // ✅ LOG: In ra parsed JSON data
+      console.log('[handleIncorrectAnswers] ✅ Parsed JSON data từ Gemini:')
+      console.log('='.repeat(80))
+      console.log(JSON.stringify(parsed, null, 2))
+      console.log('='.repeat(80))
+      console.log(
+        `[handleIncorrectAnswers] 📊 Số collections được tạo: ${parsed.collections?.length || 0}`
+      )
 
       if (!parsed.collections || !Array.isArray(parsed.collections)) {
         console.warn('[handleIncorrectAnswers] ⚠️ Invalid collections format')
@@ -241,35 +286,113 @@ const SessionPage = () => {
 
         if (q.question_type === 'lexical_fix') {
           info += `   Incorrect: "${q.incorrect_sentence}"\n`
-          info += `   Word: "${q.incorrect_word}" → "${q.correct_word}"\n`
+          info += `   Incorrect Word: "${q.incorrect_word}"\n`
+          info += `   Correct Word: "${q.correct_word}"\n`
+          info += `   User Answer: "${q.user_answer || '(no answer)'}"\n`
         } else if (q.question_type === 'grammar_transformation') {
           info += `   Original: "${q.original_sentence}"\n`
-          info += `   Focus: ${q.grammar_focus}\n`
+          info += `   Transformation: ${q.grammar_focus}\n`
+          info += `   Correct Answer: "${q.correct_answer}"\n`
+          info += `   User Answer: "${q.user_answer || '(no answer)'}"\n`
+        } else if (q.question_type === 'sentence_puzzle') {
+          info += `   Correct Sentence: "${q.correct_sentence}"\n`
+          info += `   User Answer: "${q.user_answer || '(no answer)'}"\n`
         } else if (q.question_type === 'translate') {
-          info += `   Source: "${q.source_sentence}"\n`
-          info += `   Translation: "${q.correct_translation}"\n`
+          info += `   Source (${q.source_language}): "${q.source_sentence}"\n`
+          info += `   Correct Translation: "${q.correct_translation}"\n`
+          info += `   User Answer: "${q.user_answer || '(no answer)'}"\n`
+        } else if (q.question_type === 'reverse_translation') {
+          info += `   English: "${q.english_sentence}"\n`
+          info += `   Correct Translation (${q.target_language}): "${q.correct_translation}"\n`
+          info += `   User Answer: "${q.user_answer || '(no answer)'}"\n`
         } else if (q.question_type === 'gap_fill') {
           info += `   Sentence: "${q.sentence_with_gaps}"\n`
+          const correctAnswers = q.gaps.map((g) => g.correct_answer).join(', ')
+          info += `   Correct Answers: ${correctAnswers}\n`
+          info += `   User Answer: "${q.user_answer || '(no answer)'}"\n`
+        } else if (q.question_type === 'choice_one') {
+          info += `   Question: "${q.question_text}"\n`
+          const correctOption = q.options.find((o) => o.id === q.correct_option_id)
+          info += `   Correct Option: ${correctOption?.text || q.correct_option_id}\n`
+          const userOption = q.options.find((o) => o.id === q.user_answer)
+          info += `   User Answer: ${userOption?.text || q.user_answer || '(no answer)'}\n`
+        } else if (q.question_type === 'choice_multi') {
+          info += `   Question: "${q.question_text}"\n`
+          const correctOptions = q.options
+            .filter((o) => q.correct_option_ids.includes(o.id))
+            .map((o) => o.text)
+          info += `   Correct Options: ${correctOptions.join(', ')}\n`
+          try {
+            const userAnswerIds = JSON.parse(q.user_answer || '[]')
+            const userOptions = q.options
+              .filter((o) => userAnswerIds.includes(o.id))
+              .map((o) => o.text)
+            info += `   User Answer: ${userOptions.join(', ') || '(no answer)'}\n`
+          } catch {
+            info += `   User Answer: (invalid format)\n`
+          }
+        } else if (q.question_type === 'matching') {
+          info += `   Instruction: "${q.instruction}"\n`
+          info += `   User Answer: "${q.user_answer || '(no answer)'}"\n`
+        } else if (q.question_type === 'true_false') {
+          info += `   Statement: "${q.statement}"\n`
+          info += `   Correct Answer: ${q.correct_answer}\n`
+          info += `   User Answer: ${q.user_answer || '(no answer)'}\n`
         }
 
         return info
       })
       .join('\n')
-
     return `Analyze these incorrect answers and generate vocabulary/grammar collections to help the user learn:
 
 ${questionsInfo}
 
 **Requirements:**
 - Identify key vocabulary words, phrases, or grammar points from incorrect answers
+- ✅ CRITICAL FOR PHRASES: ONLY generate TRUE PHRASES (phrasal verbs, idioms, collocations, slang, expressions)
+  - ✅ GOOD EXAMPLES: "break out", "give up", "run out of", "look forward to", "piece of cake", "spill the beans"
+  - ❌ BAD EXAMPLES: "Can you help me?", "How are you?", "I am interested" (these are SENTENCES, not phrases)
+  - ❌ AVOID: Basic questions, greetings, simple statements
 - For each item, determine if it's a word, phrase, or grammar point
 - Generate comprehensive definitions, examples, and explanations
-- Set appropriate difficulty_level (1-10) and frequency_rank (1-10)
+- ✅ CRITICAL: difficulty_level và frequency_rank PHẢI là số nguyên từ 1-10 (KHÔNG dùng 4.5, 3.2, v.v)
+- ✅ CRITICAL: wordType CHỈ dùng các giá trị: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation
+- ✅ CRITICAL: phraseType CHỈ dùng các giá trị: idiom, phrasal_verb, collocation, slang, expression
 
 **Output Format (strict JSON):**
 \`\`\`json
 {
   "collections": [
+    {
+      "type": "phrase",
+      "content": "break out",
+      "pronunciation": "/breɪk aʊt/",
+      "difficulty_level": 5,
+      "frequency_rank": 7,
+      "category": "phrasal_verbs",
+      "tags": ["phrasal_verb", "action", "common"],
+      "definitions": [
+        {
+          "meaning": "To escape from a place or situation",
+          "translation": "Trốn thoát, bùng nổ",
+          "phraseType": "phrasal_verb",
+          "examples": [
+            {
+              "sentence": "The prisoners tried to break out of jail.",
+              "translation": "Các tù nhân đã cố gắng trốn thoát khỏi nhà tù."
+            },
+            {
+              "sentence": "A fire broke out in the building.",
+              "translation": "Một đám cháy đã bùng phát trong tòa nhà."
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "common_mistakes": "Confused with 'break down' or 'break up'",
+        "usage_note": "Can mean 'escape' or 'suddenly start'"
+      }
+    },
     {
       "type": "word",
       "content": "interested",
@@ -295,42 +418,6 @@ ${questionsInfo}
         "common_mistakes": "Confused with 'interesting'",
         "usage_note": "Use 'interested' for people's feelings"
       }
-    },
-    {
-      "type": "grammar",
-      "title": "Adjectives ending in -ed vs -ing",
-      "item_type": "rule",
-      "difficulty_level": 4,
-      "frequency_rank": 9,
-      "category": "grammar",
-      "tags": ["adjectives", "common_mistakes"],
-      "definitions": [
-        {
-          "description": "Adjectives ending in -ed describe how people feel",
-          "explanation": "-ed adjectives are used for feelings (interested, bored), -ing adjectives describe things (interesting, boring)",
-          "structure": "Subject + be + -ed adjective (for feelings)",
-          "translation": "Tính từ đuôi -ed mô tả cảm giác, -ing mô tả sự vật"
-        }
-      ],
-      "examples": [
-        {
-          "sentence": "I am interested in this book. (feeling)",
-          "translation": "Tôi quan tâm đến cuốn sách này.",
-          "usage_note": "Describes the person's feeling"
-        },
-        {
-          "sentence": "This book is interesting. (quality)",
-          "translation": "Cuốn sách này thú vị.",
-          "usage_note": "Describes the book's quality"
-        }
-      ],
-      "commonMistakes": [
-        {
-          "incorrect": "I am very interesting in this topic.",
-          "correct": "I am very interested in this topic.",
-          "explanation": "Use 'interested' to describe feelings, not 'interesting'"
-        }
-      ]
     }
   ]
 }
@@ -437,6 +524,8 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
         created_at: new Date().toISOString()
       }
 
+      // ✅ FIX: Dùng saveGrammarItem từ CloudDatabaseService
+      // Service này sẽ tự động tạo grammar_rule trước khi tạo example
       await db.saveGrammarItem(newItem)
     }
   }

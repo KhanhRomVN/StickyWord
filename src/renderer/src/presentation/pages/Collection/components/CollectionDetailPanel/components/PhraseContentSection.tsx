@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { vocabulary_item } from '../../../types/vocabulary'
 import CustomInput from '../../../../../../components/common/CustomInput'
 import CustomCombobox from '../../../../../../components/common/CustomCombobox'
@@ -45,6 +45,10 @@ const PHRASE_TYPES = [
 const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => {
   const [currentItem, setCurrentItem] = useState<vocabulary_item>(item)
 
+  useEffect(() => {
+    setCurrentItem(item)
+  }, [item])
+
   const getInitialDefinitions = (): Definition[] => {
     if (currentItem.metadata?.definitions && Array.isArray(currentItem.metadata.definitions)) {
       return currentItem.metadata.definitions.map((def: any) => ({
@@ -88,6 +92,23 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
 
   const [definitionsExpanded, setDefinitionsExpanded] = useState(false)
   const [examplesExpanded, setExamplesExpanded] = useState<{ [key: number]: boolean }>({})
+
+  // ✅ FIX: Đồng bộ formData khi currentItem thay đổi
+  useEffect(() => {
+    setFormData({
+      content: currentItem.content,
+      pronunciation: currentItem.pronunciation || '',
+      definitions: getInitialDefinitions(),
+      difficulty_level: currentItem.difficulty_level || 0,
+      frequency_rank: currentItem.frequency_rank || 0,
+      category: currentItem.category || '',
+      tags: currentItem.tags || [],
+      metadata: currentItem.metadata || {}
+    })
+    setEditingFields({})
+    setDefinitionsExpanded(false)
+    setExamplesExpanded({})
+  }, [currentItem.id])
 
   const handleDelete = () => {
     if (confirm(`Bạn có chắc chắn muốn xóa cụm từ "${currentItem.content}" này không?`)) {

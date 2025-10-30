@@ -39,6 +39,7 @@ export interface base_question {
   user_answer?: string
   is_correct?: boolean
   scores: [number, number, number, number, number, number]
+  score_earn?: number
   time_spent?: number
   time_limit: number
 }

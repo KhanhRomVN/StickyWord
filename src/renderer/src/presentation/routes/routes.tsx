@@ -18,15 +18,7 @@ export const routes: RouteObject[] = [
         element: <DashboardPage />
       },
       {
-        path: 'collection/words',
-        element: <CollectionPage />
-      },
-      {
-        path: 'collection/phrases',
-        element: <CollectionPage />
-      },
-      {
-        path: 'collection/grammar',
+        path: 'collections',
         element: <CollectionPage />
       },
       {

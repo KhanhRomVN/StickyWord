@@ -1,10 +1,12 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { vocabulary_item } from '../../types/vocabulary'
 import { grammar_item } from '../../types/grammar'
 import CollectionCard from './components/CollectionCard'
 import CreateCollectionModal from '../CreateCollectionModal'
 import CustomButton from '../../../../../components/common/CustomButton'
-import { Plus, Search } from 'lucide-react'
+import CustomDropdown from '../../../../../components/common/CustomDropdown'
+import FilterOverlay from './components/FilterOverlay'
+import { Filter, Plus, Search, BookOpen, MessageSquare, BookMarked } from 'lucide-react'
 
 type FilterType = 'all' | vocabulary_item['item_type'] | grammar_item['item_type'] | 'grammar'
 
@@ -14,17 +16,30 @@ interface CollectionListPanelProps {
   defaultFilterType?: 'all' | vocabulary_item['item_type'] | 'grammar'
   onItemDeleted?: (itemId: string) => void
 }
-const CollectionListPanel = ({
-  onSelectItem,
-  selectedItem,
-  defaultFilterType = 'all'
-}: CollectionListPanelProps) => {
+const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanelProps) => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState<FilterType>(defaultFilterType)
+  const [filterType] = useState<FilterType>('all')
   const [sortBy] = useState<'newest' | 'oldest' | 'content'>('newest')
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false)
+  const [createType, setCreateType] = useState<'word' | 'phrase' | 'grammar'>('word')
   const [items, setItems] = useState<(vocabulary_item | grammar_item)[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [filters, setFilters] = useState<{
+    // ✅ State cho filters
+    item_type: string[]
+    difficulty_level: string[]
+    frequency_rank: string[]
+    category: string[]
+    tags: string[]
+  }>({
+    item_type: [],
+    difficulty_level: [],
+    frequency_rank: [],
+    category: [],
+    tags: []
+  })
 
   // Type guard để kiểm tra xem item có phải grammar_item không
   const isGrammarItem = (item: vocabulary_item | grammar_item): item is grammar_item => {
@@ -39,27 +54,41 @@ const CollectionListPanel = ({
     return 'grammar'
   }
 
-  // Update filter when defaultFilterType changes
-  useEffect(() => {
-    setFilterType(defaultFilterType)
-  }, [defaultFilterType])
+  // ✅ FIX: Track if initial load is done
+  const initialLoadDone = useRef(false)
+  const isMounted = useRef(true)
 
-  // Reload items when filter type changes
+  // ✅ FIX: Load items only once on mount
   useEffect(() => {
-    loadItems(filterType)
-  }, [filterType])
-
-  // Load items from database on mount
-  useEffect(() => {
-    loadItems('all')
+    console.log(
+      '[CollectionListPanel] 🎬 Initial useEffect triggered, initialLoadDone:',
+      initialLoadDone.current
+    )
+    if (!initialLoadDone.current) {
+      console.log('[CollectionListPanel] 🔥 First load - calling loadItems("all")')
+      loadItems('all')
+      initialLoadDone.current = true
+    } else {
+      console.log('[CollectionListPanel] ⏭️ Skip initial load - already done')
+    }
   }, [])
 
-  // Listen for item deletion events
+  // ✅ FIX: Set isMounted = true khi component mount
   useEffect(() => {
-    const handleItemDeletedEvent = (event: CustomEvent) => {
-      const { itemId } = event.detail
-      loadItems(filterType)
-      onSelectItem(null)
+    isMounted.current = true
+
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
+  // ✅ FIX: Listen for item deletion events
+  useEffect(() => {
+    const handleItemDeletedEvent = () => {
+      if (isMounted.current) {
+        loadItems(filterType)
+        onSelectItem(null)
+      }
     }
 
     window.addEventListener('item-deleted', handleItemDeletedEvent as EventListener)
@@ -67,31 +96,73 @@ const CollectionListPanel = ({
     return () => {
       window.removeEventListener('item-deleted', handleItemDeletedEvent as EventListener)
     }
-  }, [filterType, onSelectItem])
+  }, [filterType])
 
-  const loadItems = async (filter: FilterType) => {
+  // ✅ FIX: useCallback để tránh re-create function
+  const loadItems = useCallback(async (filter: FilterType) => {
+    console.log('[CollectionListPanel] 🔄 loadItems called with filter:', filter)
+
     try {
+      console.log('[CollectionListPanel] 📝 Setting isLoading to true')
       setIsLoading(true)
 
       const apiFilter = getApiFilterType(filter)
 
+      console.log('[CollectionListPanel] 🔍 Loading items with filter:', {
+        filterType: filter,
+        apiFilter: apiFilter,
+        isMounted: isMounted.current
+      })
+
       const { getCloudDatabase } = await import('../../../../../services/CloudDatabaseService')
       const db = getCloudDatabase()
 
-      if (db) {
+      console.log('[CollectionListPanel] 🗄️ Database status:', {
+        dbExists: !!db,
+        isMounted: isMounted.current
+      })
+
+      if (db && isMounted.current) {
+        console.log('[CollectionListPanel] 🚀 Calling db.getAllItems...')
         const response = await db.getAllItems(apiFilter)
+        console.log('[CollectionListPanel] ✅ Loaded items:', {
+          count: response.length,
+          filter: apiFilter,
+          items: response,
+          isMounted: isMounted.current
+        })
+
+        console.log('[CollectionListPanel] 💾 Setting items state...')
         setItems(response as (vocabulary_item | grammar_item)[])
+        console.log('[CollectionListPanel] ✔️ Items state set successfully')
       } else {
-        console.warn('[CollectionListPanel] ⚠️ Database not connected')
-        setItems([])
+        console.warn('[CollectionListPanel] ⚠️ Database not connected or unmounted:', {
+          db: !!db,
+          isMounted: isMounted.current
+        })
+        if (isMounted.current) {
+          setItems([])
+        }
       }
     } catch (error) {
-      console.error('[CollectionListPanel] ❌ Error loading items:', error)
-      setItems([])
+      console.error('[CollectionListPanel] ❌ Error loading items:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      if (isMounted.current) {
+        setItems([])
+      }
     } finally {
-      setIsLoading(false)
+      console.log(
+        '[CollectionListPanel] 🏁 Finally block - setting isLoading to false, isMounted:',
+        isMounted.current
+      )
+      if (isMounted.current) {
+        setIsLoading(false)
+      }
     }
-  }
+  }, [])
 
   const getSearchableText = (item: vocabulary_item | grammar_item): string => {
     return isGrammarItem(item) ? item.title : item.content
@@ -102,20 +173,40 @@ const CollectionListPanel = ({
       const searchableText = getSearchableText(item)
       const matchesSearch = searchableText.toLowerCase().includes(searchTerm.toLowerCase())
 
-      // Check if filter matches
-      let matchesType = filterType === 'all'
+      // ✅ Filter theo item_type
+      const matchesItemType =
+        filters.item_type.length === 0 ||
+        filters.item_type.includes(item.item_type) ||
+        (filters.item_type.includes('grammar') && isGrammarItem(item))
 
-      if (!matchesType) {
-        if (filterType === 'word' || filterType === 'phrase') {
-          // Vocabulary filter
-          matchesType = item.item_type === filterType
-        } else {
-          // Grammar filter (tense, structure, rule, pattern)
-          matchesType = isGrammarItem(item) && item.item_type === filterType
-        }
-      }
+      // ✅ Filter theo difficulty_level
+      const matchesDifficulty =
+        filters.difficulty_level.length === 0 ||
+        (item.difficulty_level &&
+          filters.difficulty_level.includes(item.difficulty_level.toString()))
 
-      return matchesSearch && matchesType
+      // ✅ Filter theo frequency_rank
+      const matchesFrequency =
+        filters.frequency_rank.length === 0 ||
+        (item.frequency_rank && filters.frequency_rank.includes(item.frequency_rank.toString()))
+
+      // ✅ Filter theo category
+      const matchesCategory =
+        filters.category.length === 0 || (item.category && filters.category.includes(item.category))
+
+      // ✅ Filter theo tags
+      const matchesTags =
+        filters.tags.length === 0 ||
+        (item.tags && item.tags.some((tag) => filters.tags.includes(tag)))
+
+      return (
+        matchesSearch &&
+        matchesItemType &&
+        matchesDifficulty &&
+        matchesFrequency &&
+        matchesCategory &&
+        matchesTags
+      )
     })
 
     // Sort items
@@ -135,7 +226,52 @@ const CollectionListPanel = ({
     })
 
     return filtered
-  }, [items, searchTerm, filterType, sortBy])
+  }, [items, searchTerm, filters, sortBy])
+
+  const uniqueValues = useMemo(() => {
+    const types = new Set<string>()
+    const levels = new Set<string>()
+    const ranks = new Set<string>()
+    const categories = new Set<string>()
+    const tags = new Set<string>()
+
+    items.forEach((item) => {
+      // Item types
+      if (isGrammarItem(item)) {
+        types.add('grammar')
+      } else {
+        types.add(item.item_type)
+      }
+
+      // Difficulty levels
+      if (item.difficulty_level) {
+        levels.add(item.difficulty_level.toString())
+      }
+
+      // Frequency ranks
+      if (item.frequency_rank) {
+        ranks.add(item.frequency_rank.toString())
+      }
+
+      // Categories
+      if (item.category) {
+        categories.add(item.category)
+      }
+
+      // Tags
+      if (item.tags) {
+        item.tags.forEach((tag) => tags.add(tag))
+      }
+    })
+
+    return {
+      itemTypes: Array.from(types),
+      difficultyLevels: Array.from(levels).sort((a, b) => parseInt(a) - parseInt(b)),
+      frequencyRanks: Array.from(ranks).sort((a, b) => parseInt(a) - parseInt(b)),
+      categories: Array.from(categories).sort(),
+      tags: Array.from(tags).sort()
+    }
+  }, [items])
 
   const handleCreateSuccess = async (newItems: (vocabulary_item | grammar_item)[]) => {
     try {
@@ -157,17 +293,63 @@ const CollectionListPanel = ({
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border-default p-4 space-y-3">
-        {/* Title và Create Button */}
+        {/* Title và Buttons */}
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">Collection</h2>
-          <CustomButton
-            size="sm"
-            variant="primary"
-            icon={Plus}
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            Add
-          </CustomButton>
+          <h2 className="text-lg font-semibold text-text-primary">Collection Manager</h2>
+          <div className="flex items-center gap-2">
+            <CustomButton
+              size="sm"
+              variant="ghost"
+              icon={Filter}
+              onClick={() => setIsFilterOpen(true)}
+              children={undefined}
+            />
+            <div className="relative">
+              <CustomButton
+                size="sm"
+                variant="primary"
+                icon={Plus}
+                onClick={() => setIsCreateDropdownOpen(!isCreateDropdownOpen)}
+                children={undefined}
+              />
+              {isCreateDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-[998]"
+                    onClick={() => setIsCreateDropdownOpen(false)}
+                  />
+                  <div className="absolute top-full right-0 mt-1 z-[999]">
+                    <CustomDropdown
+                      options={[
+                        {
+                          value: 'word',
+                          label: 'Add Word',
+                          icon: <BookOpen className="w-3.5 h-3.5" />
+                        },
+                        {
+                          value: 'phrase',
+                          label: 'Add Phrase',
+                          icon: <MessageSquare className="w-3.5 h-3.5" />
+                        },
+                        {
+                          value: 'grammar',
+                          label: 'Add Grammar',
+                          icon: <BookMarked className="w-3.5 h-3.5" />
+                        }
+                      ]}
+                      onSelect={(value) => {
+                        setCreateType(value as 'word' | 'phrase' | 'grammar')
+                        setIsCreateModalOpen(true)
+                        setIsCreateDropdownOpen(false)
+                      }}
+                      align="right"
+                      width="w-40"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Search Input */}
@@ -185,6 +367,17 @@ const CollectionListPanel = ({
 
       {/* Items List */}
       <div className="flex-1 overflow-y-auto">
+        {(() => {
+          console.log('[CollectionListPanel] 🎨 Render state:', {
+            isLoading,
+            itemsLength: items.length,
+            filteredLength: filteredAndSortedItems.length,
+            searchTerm,
+            filters
+          })
+          return null
+        })()}
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-text-secondary p-8">
             <div className="animate-spin w-8 h-8 border-4 border-border-default border-t-primary rounded-full mb-3" />
@@ -227,8 +420,25 @@ const CollectionListPanel = ({
       {/* Create Collection Modal */}
       <CreateCollectionModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false)
+          setIsCreateDropdownOpen(false)
+        }}
         onCreateSuccess={handleCreateSuccess}
+        defaultType={createType}
+      />
+
+      {/* ✅ Filter Overlay */}
+      <FilterOverlay
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        filters={filters}
+        onFiltersChange={setFilters}
+        availableItemTypes={uniqueValues.itemTypes}
+        availableDifficultyLevels={uniqueValues.difficultyLevels}
+        availableFrequencyRanks={uniqueValues.frequencyRanks}
+        availableCategories={uniqueValues.categories}
+        availableTags={uniqueValues.tags}
       />
     </div>
   )

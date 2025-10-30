@@ -50,6 +50,16 @@ export class SessionStorageService {
         updated_at = EXCLUDED.updated_at
     `
 
+      // ✅ FIX: Round difficulty_level về số nguyên
+      const roundedDifficultyLevel = session.difficulty_level
+        ? Math.round(session.difficulty_level)
+        : null
+
+      // ✅ FIX: Round accuracy_rate về 2 chữ số thập phân
+      const roundedAccuracyRate = session.accuracy_rate
+        ? Math.round(session.accuracy_rate * 100) / 100
+        : null
+
       const params = [
         session.id,
         session.title,
@@ -59,10 +69,10 @@ export class SessionStorageService {
         session.created_at,
         session.completed_at || null,
         session.expires_at || null,
-        session.difficulty_level,
+        roundedDifficultyLevel, // ✅ Đã làm tròn
         session.total_time_spent || null,
         session.total_score || null,
-        session.accuracy_rate || null,
+        roundedAccuracyRate, // ✅ Đã làm tròn
         session.attempts_allowed,
         session.target_language,
         session.source_language,
