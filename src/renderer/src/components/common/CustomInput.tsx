@@ -1,5 +1,5 @@
 import React, { useState, forwardRef, useRef, useEffect } from 'react'
-import { Eye, EyeOff, AlertCircle, CheckCircle, Info } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Check, Info } from 'lucide-react'
 import DateAndTimePicker from './DateAndTimePicker'
 
 interface CustomInputProps
@@ -138,7 +138,7 @@ const CustomInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, CustomInp
 
       // Hiển thị success icon (không click được) khi vừa save thành công
       if (showSuccessIcon && !hasChanged) {
-        return <CheckCircle className="h-4 w-4 text-green-600" />
+        return <Check className="h-4 w-4 text-green-600" />
       }
 
       // Không có thay đổi và không trong trạng thái success
@@ -155,7 +155,7 @@ const CustomInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, CustomInp
           disabled={isSaving}
           tabIndex={-1}
         >
-          <CheckCircle className="h-3 w-3" />
+          <Check className="h-3 w-3" />
         </button>
       )
     }
@@ -302,7 +302,7 @@ const CustomInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, CustomInp
         return {
           border:
             'border-green-500 dark:border-green-400 focus:border-green-500 focus:ring-green-500/20',
-          icon: <CheckCircle className="w-5 h-5 text-green-500" />,
+          icon: <Check className="w-5 h-5 text-green-500" />,
           message: 'text-green-600 dark:text-green-400'
         }
       }
@@ -436,7 +436,7 @@ const CustomInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, CustomInp
           {/* Left Icon */}
           {leftIcon && (
             <div
-              className={`absolute left-3 ${multiline ? 'top-4' : 'top-1/2 -translate-y-1/2'} text-gray-400 dark:text-gray-500 pointer-events-none z-10`}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none z-10`}
             >
               {leftIcon}
             </div>
@@ -506,7 +506,15 @@ const CustomInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, CustomInp
 
           {/* Right Icons Container */}
           <div
-            className={`absolute right-3 ${multiline ? 'top-4' : 'top-1/2 -translate-y-1/2'} flex items-center gap-1`}
+            className={`absolute right-3 flex gap-1 ${
+              multiline
+                ? size === 'sm'
+                  ? 'top-[8px]'
+                  : size === 'md'
+                    ? 'top-[10px]'
+                    : 'top-[12px]'
+                : 'top-1/2 -translate-y-1/2 items-center'
+            }`}
           >
             {/* Additional Actions (Eye, Copy, etc.) */}
             {additionalActions && (
@@ -564,7 +572,7 @@ const CustomInput = forwardRef<HTMLInputElement | HTMLTextAreaElement, CustomInp
           {/* Success Message */}
           {success && !error && (
             <p className={`text-sm flex items-center gap-1 ${statusStyles.message}`}>
-              <CheckCircle className="w-4 h-4" />
+              <Check className="w-4 h-4" />
               {success}
             </p>
           )}

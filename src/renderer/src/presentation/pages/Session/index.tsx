@@ -227,36 +227,15 @@ const SessionPage = () => {
 
       const prompt = buildCollectionPrompt(incorrectQuestions)
 
-      // ✅ LOG: In ra prompt gửi cho Gemini khi xử lý incorrect answers
-      console.log('[handleIncorrectAnswers] 📤 Prompt gửi cho Gemini API:')
-      console.log('='.repeat(80))
-      console.log(prompt)
-      console.log('='.repeat(80))
-
       const { createCreateCollectionService } = await import(
         '../../../presentation/pages/Collection/services/CreateCollectionService'
       )
       const service = createCreateCollectionService(selectedKey.key)
       const aiResponse = await service.generateQuestions(prompt)
 
-      // ✅ LOG: In ra raw response từ Gemini
-      console.log('[handleIncorrectAnswers] 📥 Raw response từ Gemini API:')
-      console.log('='.repeat(80))
-      console.log(aiResponse)
-      console.log('='.repeat(80))
-
       const jsonMatch = aiResponse.match(/```json\n([\s\S]*?)\n```/)
       const jsonText = jsonMatch ? jsonMatch[1] : aiResponse
       const parsed = JSON.parse(jsonText)
-
-      // ✅ LOG: In ra parsed JSON data
-      console.log('[handleIncorrectAnswers] ✅ Parsed JSON data từ Gemini:')
-      console.log('='.repeat(80))
-      console.log(JSON.stringify(parsed, null, 2))
-      console.log('='.repeat(80))
-      console.log(
-        `[handleIncorrectAnswers] 📊 Số collections được tạo: ${parsed.collections?.length || 0}`
-      )
 
       if (!parsed.collections || !Array.isArray(parsed.collections)) {
         console.warn('[handleIncorrectAnswers] ⚠️ Invalid collections format')

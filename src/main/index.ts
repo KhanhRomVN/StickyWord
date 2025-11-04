@@ -9,6 +9,7 @@ import { Pool } from 'pg'
 
 let mainWindow: BrowserWindow | null = null
 let cloudDbPool: Pool | null = null
+let isCloudDbConnected: boolean = false // ✅ Track connection state
 
 // Storage file path
 const getStorageFilePath = () => {
@@ -342,7 +343,12 @@ function setupCloudDatabaseHandlers() {
   // Connect to cloud database
   ipcMain.handle('cloud-db:connect', async (_event, connectionString: string) => {
     try {
-      // Close existing connection if any
+      // ✅ Không close nếu đã connect với cùng connection string
+      if (cloudDbPool && isCloudDbConnected) {
+        return { success: true }
+      }
+
+      // Close existing connection if different
       if (cloudDbPool) {
         await cloudDbPool.end()
       }
@@ -351,6 +357,7 @@ function setupCloudDatabaseHandlers() {
 
       // Test connection
       await cloudDbPool.query('SELECT 1')
+      isCloudDbConnected = true // ✅ Mark as connected
 
       // Auto-initialize schema after successful connection
       const initResult = await initializeCloudDatabaseSchema()
@@ -364,6 +371,7 @@ function setupCloudDatabaseHandlers() {
     } catch (error) {
       console.error('[cloud-db:connect] Error:', error)
       cloudDbPool = null
+      isCloudDbConnected = false
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Connection failed'
@@ -377,6 +385,7 @@ function setupCloudDatabaseHandlers() {
       if (cloudDbPool) {
         await cloudDbPool.end()
         cloudDbPool = null
+        isCloudDbConnected = false
       }
       return { success: true }
     } catch (error) {
@@ -462,7 +471,7 @@ function setupCloudDatabaseHandlers() {
   // Get connection status
   ipcMain.handle('cloud-db:status', async () => {
     return {
-      isConnected: cloudDbPool !== null
+      isConnected: cloudDbPool !== null && isCloudDbConnected
     }
   })
 }
@@ -577,6 +586,27 @@ app.whenReady().then(async () => {
   setupCloudDatabaseHandlers()
   setupPopupHandlers()
 
+  // ✅ Auto-connect to database if connection string exists
+  try {
+    const storagePath = getStorageFilePath()
+    if (fs.existsSync(storagePath)) {
+      const fileContent = fs.readFileSync(storagePath, 'utf8')
+      const data = JSON.parse(fileContent)
+
+      if (data.cloud_database_connection?.connectionString) {
+        const connectionString = data.cloud_database_connection.connectionString
+
+        cloudDbPool = new Pool({ connectionString })
+        await cloudDbPool.query('SELECT 1')
+        isCloudDbConnected = true
+
+        await initializeCloudDatabaseSchema()
+      }
+    }
+  } catch (error) {
+    console.error('[app.whenReady] ❌ Auto-connect failed:', error)
+  }
+
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   app.on('browser-window-created', (_, window) => {
@@ -605,18 +635,16 @@ app.whenReady().then(async () => {
   })
 })
 
-// Quit when all windows are closed, except on macOS.
 app.on('window-all-closed', async () => {
-  // Close cloud database connection when app is closing
-  if (cloudDbPool) {
-    try {
-      await cloudDbPool.end()
-    } catch (err) {
-      console.error('Error closing cloud database on app quit:', err)
-    }
-  }
-
   if (process.platform !== 'darwin') {
+    if (cloudDbPool) {
+      try {
+        await cloudDbPool.end()
+        isCloudDbConnected = false
+      } catch (err) {
+        console.error('[app quit] ❌ Error closing database:', err)
+      }
+    }
     app.quit()
   }
 })

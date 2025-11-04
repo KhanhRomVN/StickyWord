@@ -5,11 +5,13 @@ import CustomCombobox from '../../../../../../components/common/CustomCombobox'
 import CustomTag from '../../../../../../components/common/CustomTag'
 import Metadata from '../../../../../../components/common/Metadata'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { Plus, Trash2, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 interface PhraseContentSectionProps {
   item: vocabulary_item
   onDelete?: (itemId: string) => void
+  activeTab: 'information' | 'definitions' | 'metadata'
 }
 
 interface Definition {
@@ -42,8 +44,72 @@ const PHRASE_TYPES = [
   { value: 'expression', label: 'Expression' }
 ]
 
-const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => {
+const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) => {
   const [currentItem, setCurrentItem] = useState<vocabulary_item>(item)
+  const [creatingExample, setCreatingExample] = useState<Record<number, boolean>>({})
+  const [newExampleData, setNewExampleData] = useState<
+    Record<number, { sentence: string; translation: string }>
+  >({})
+
+  const startCreateExample = (defIndex: number) => {
+    setCreatingExample((prev) => ({ ...prev, [defIndex]: true }))
+    setNewExampleData((prev) => ({ ...prev, [defIndex]: { sentence: '', translation: '' } }))
+  }
+
+  const cancelCreateExample = (defIndex: number) => {
+    setCreatingExample((prev) => ({ ...prev, [defIndex]: false }))
+    setNewExampleData((prev) => {
+      const newData = { ...prev }
+      delete newData[defIndex]
+      return newData
+    })
+  }
+
+  const confirmCreateExample = (defIndex: number) => {
+    const data = newExampleData[defIndex]
+    if (!data?.sentence.trim()) {
+      alert('Please enter example sentence')
+      return
+    }
+
+    setFormData((prev) => {
+      const newDefs = [...prev.definitions]
+      newDefs[defIndex] = {
+        ...newDefs[defIndex],
+        examples: [
+          ...newDefs[defIndex].examples,
+          { sentence: data.sentence, translation: data.translation }
+        ]
+      }
+      return { ...prev, definitions: newDefs }
+    })
+
+    // Move to new example
+    const newIndex = formData.definitions[defIndex].examples.length
+    goToExampleSlide(defIndex, newIndex)
+
+    // Reset form
+    setCreatingExample((prev) => ({ ...prev, [defIndex]: false }))
+    setNewExampleData((prev) => {
+      const newData = { ...prev }
+      delete newData[defIndex]
+      return newData
+    })
+  }
+
+  const handleNewExampleChange = (
+    defIndex: number,
+    field: 'sentence' | 'translation',
+    value: string
+  ) => {
+    setNewExampleData((prev) => ({
+      ...prev,
+      [defIndex]: {
+        ...prev[defIndex],
+        [field]: value
+      }
+    }))
+  }
 
   useEffect(() => {
     setCurrentItem(item)
@@ -51,8 +117,8 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
 
   const getInitialDefinitions = (): Definition[] => {
     if (currentItem.metadata?.definitions && Array.isArray(currentItem.metadata.definitions)) {
-      return currentItem.metadata.definitions.map((def: any) => ({
-        id: def.id || `def_${Date.now()}`,
+      return currentItem.metadata.definitions.map((def: any, index: number) => ({
+        id: def.id || `def_${Date.now()}_${index}`,
         meaning: def.meaning || '',
         translation: def.translation || '',
         phrase_type: def.phrase_type || def.phraseType || '',
@@ -86,14 +152,22 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
     metadata: currentItem.metadata || {}
   })
 
-  const [editingFields, setEditingFields] = useState<{
-    [key: string]: { isEditing: boolean; pendingValue: string }
-  }>({})
+  // State để quản lý tab hiện tại của từng definition
+  const [activeDefTab, setActiveDefTab] = useState<Record<number, 'definition' | 'example'>>({})
 
-  const [definitionsExpanded, setDefinitionsExpanded] = useState(false)
-  const [examplesExpanded, setExamplesExpanded] = useState<{ [key: number]: boolean }>({})
+  // State để quản lý slide index của example slider
+  const [exampleSlideIndex, setExampleSlideIndex] = useState<Record<number, number>>({})
 
-  // ✅ FIX: Đồng bộ formData khi currentItem thay đổi
+  // Cache initial definitions
+  const [initialDefinitions, setInitialDefinitions] = useState<Definition[]>(() =>
+    getInitialDefinitions()
+  )
+
+  useEffect(() => {
+    const newInitialDefs = getInitialDefinitions()
+    setInitialDefinitions(newInitialDefs)
+  }, [currentItem.id])
+
   useEffect(() => {
     setFormData({
       content: currentItem.content,
@@ -105,123 +179,57 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
       tags: currentItem.tags || [],
       metadata: currentItem.metadata || {}
     })
-    setEditingFields({})
-    setDefinitionsExpanded(false)
-    setExamplesExpanded({})
+    setActiveDefTab({})
+    setExampleSlideIndex({})
   }, [currentItem.id])
 
-  const handleDelete = () => {
-    if (confirm(`Bạn có chắc chắn muốn xóa cụm từ "${currentItem.content}" này không?`)) {
-      onDelete?.(currentItem.id)
-    }
-  }
-
-  const startEditField = (fieldKey: string) => {
-    let currentValue = ''
-
-    if (fieldKey === 'content') {
-      currentValue = currentItem.content
-    } else if (fieldKey === 'pronunciation') {
-      currentValue = currentItem.pronunciation || ''
-    } else if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'meaning') {
-        currentValue = formData.definitions[defIndex]?.meaning || ''
-      } else if (field === 'translation') {
-        currentValue = formData.definitions[defIndex]?.translation || ''
-      }
-    } else if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const exIndex = parseInt(parts[2])
-      const field = parts.slice(3).join('_')
-
-      if (field === 'sentence') {
-        currentValue = formData.definitions[defIndex]?.examples[exIndex]?.sentence || ''
-      } else if (field === 'translation') {
-        currentValue = formData.definitions[defIndex]?.examples[exIndex]?.translation || ''
-      }
-    }
-
-    setEditingFields((prev) => {
-      const newState = {
-        ...prev,
-        [fieldKey]: {
-          isEditing: true,
-          pendingValue: currentValue
-        }
-      }
-      return newState
-    })
-  }
-
-  const handleFieldChange = (fieldKey: string, value: string) => {
-    setEditingFields((prev) => {
-      const newState = {
-        ...prev,
-        [fieldKey]: {
-          ...prev[fieldKey],
-          pendingValue: value
-        }
-      }
-      return newState
-    })
-  }
-
-  const confirmFieldChange = async (fieldKey: string) => {
-    const newValue = editingFields[fieldKey]?.pendingValue || ''
-    let updatedDefinitions = [...formData.definitions]
-
-    if (fieldKey === 'content') {
-      setFormData((prev) => ({ ...prev, content: newValue }))
-    } else if (fieldKey === 'pronunciation') {
-      setFormData((prev) => ({ ...prev, pronunciation: newValue }))
-    } else if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'meaning') {
-        updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], meaning: newValue }
-      } else if (field === 'translation') {
-        updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], translation: newValue }
-      }
-
-      setFormData((prev) => ({ ...prev, definitions: updatedDefinitions }))
-    } else if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const exIndex = parseInt(parts[2])
-      const field = parts.slice(3).join('_')
-
-      const newExamples = [...updatedDefinitions[defIndex].examples]
-      if (field === 'sentence') {
-        newExamples[exIndex] = { ...newExamples[exIndex], sentence: newValue }
-      } else if (field === 'translation') {
-        newExamples[exIndex] = { ...newExamples[exIndex], translation: newValue }
-      }
-      updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], examples: newExamples }
-
-      setFormData((prev) => ({ ...prev, definitions: updatedDefinitions }))
-    }
-
+  const handleSaveField = async (fieldKey: string, newValue: string) => {
     try {
-      const updatedMetadata = {
-        ...formData.metadata,
-        definitions: updatedDefinitions
+      let updatedDefinitions = [...formData.definitions]
+      let updatedItem: Partial<vocabulary_item> = {}
+
+      if (fieldKey === 'content') {
+        updatedItem.content = newValue
+      } else if (fieldKey === 'pronunciation') {
+        updatedItem.pronunciation = newValue
+      } else if (fieldKey.startsWith('def_')) {
+        const parts = fieldKey.split('_')
+        const defIndex = parseInt(parts[1])
+        const field = parts.slice(2).join('_')
+
+        if (field === 'meaning') {
+          updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], meaning: newValue }
+        } else if (field === 'translation') {
+          updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], translation: newValue }
+        }
+
+        updatedItem.metadata = {
+          ...formData.metadata,
+          definitions: updatedDefinitions
+        }
+      } else if (fieldKey.startsWith('ex_')) {
+        const parts = fieldKey.split('_')
+        const defIndex = parseInt(parts[1])
+        const exIndex = parseInt(parts[2])
+        const field = parts.slice(3).join('_')
+
+        const newExamples = [...updatedDefinitions[defIndex].examples]
+        if (field === 'sentence') {
+          newExamples[exIndex] = { ...newExamples[exIndex], sentence: newValue }
+        } else if (field === 'translation') {
+          newExamples[exIndex] = { ...newExamples[exIndex], translation: newValue }
+        }
+        updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], examples: newExamples }
+
+        updatedItem.metadata = {
+          ...formData.metadata,
+          definitions: updatedDefinitions
+        }
       }
 
-      const updatedItem = {
+      const finalItem = {
         ...currentItem,
-        [fieldKey === 'content'
-          ? 'content'
-          : fieldKey === 'pronunciation'
-            ? 'pronunciation'
-            : 'metadata']:
-          fieldKey === 'content' || fieldKey === 'pronunciation' ? newValue : updatedMetadata,
+        ...updatedItem,
         updated_at: new Date().toISOString()
       }
 
@@ -229,30 +237,33 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(finalItem as vocabulary_item)
+        setCurrentItem(finalItem as vocabulary_item)
+        setFormData((prev) => ({
+          ...prev,
+          ...updatedItem,
+          definitions: updatedDefinitions
+        }))
+        setInitialDefinitions(updatedDefinitions)
       } else {
         throw new Error('Database not connected')
       }
     } catch (error) {
-      console.error('[PhraseContentSection] Error updating field:', error)
-      alert(`Lỗi khi lưu: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('[PhraseContentSection] Error saving field:', error)
+      throw error
     }
-
-    setEditingFields((prev) => {
-      const newState = { ...prev }
-      delete newState[fieldKey]
-      return newState
-    })
   }
 
-  const handleDifficultyChange = async (value: string | string[]) => {
+  const handleDifficultyChange = (value: string | string[]) => {
     const newValue = parseInt(typeof value === 'string' ? value : value[0])
     setFormData((prev) => ({
       ...prev,
       difficulty_level: newValue
     }))
+  }
 
+  const handleSaveDifficulty = async (value: string | string[]) => {
+    const newValue = parseInt(typeof value === 'string' ? value : value[0])
     try {
       const updatedItem = {
         ...currentItem,
@@ -272,13 +283,16 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
     }
   }
 
-  const handleFrequencyChange = async (value: string | string[]) => {
+  const handleFrequencyChange = (value: string | string[]) => {
     const newValue = parseInt(typeof value === 'string' ? value : value[0])
     setFormData((prev) => ({
       ...prev,
       frequency_rank: newValue
     }))
+  }
 
+  const handleSaveFrequency = async (value: string | string[]) => {
+    const newValue = parseInt(typeof value === 'string' ? value : value[0])
     try {
       const updatedItem = {
         ...currentItem,
@@ -298,13 +312,16 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
     }
   }
 
-  const handleCategoryChange = async (value: string | string[]) => {
+  const handleCategoryChange = (value: string | string[]) => {
     const newValue = typeof value === 'string' ? value : value[0]
     setFormData((prev) => ({
       ...prev,
       category: newValue
     }))
+  }
 
+  const handleSaveCategory = async (value: string | string[]) => {
+    const newValue = typeof value === 'string' ? value : value[0]
     try {
       const updatedItem = {
         ...currentItem,
@@ -346,6 +363,40 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
     }
   }
 
+  const handlePhraseTypeChange = (defIndex: number, value: string | string[]) => {
+    const newValue = typeof value === 'string' ? value : value[0] || ''
+    handleDefinitionChange(defIndex, 'phrase_type', newValue)
+  }
+
+  const handleSavePhraseType = async (defIndex: number, value: string | string[]) => {
+    const newValue = typeof value === 'string' ? value : value[0] || ''
+    try {
+      const updatedDefinitions = [...formData.definitions]
+      updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], phrase_type: newValue }
+
+      const updatedItem = {
+        ...currentItem,
+        metadata: {
+          ...formData.metadata,
+          definitions: updatedDefinitions
+        },
+        updated_at: new Date().toISOString()
+      }
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateVocabularyItem(updatedItem as vocabulary_item)
+        setCurrentItem(updatedItem as vocabulary_item)
+        setFormData((prev) => ({ ...prev, definitions: updatedDefinitions }))
+        setInitialDefinitions(updatedDefinitions)
+      }
+    } catch (error) {
+      console.error('[PhraseContentSection] Error updating phrase type:', error)
+    }
+  }
+
   const handleMetadataChange = async (newMetadata: Record<string, any>) => {
     setFormData((prev) => ({ ...prev, metadata: newMetadata }))
 
@@ -384,7 +435,7 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
       definitions: [
         ...prev.definitions,
         {
-          id: `def_${Date.now()}`,
+          id: `def_${Date.now()}_${prev.definitions.length}`,
           meaning: '',
           translation: '',
           phrase_type: '',
@@ -404,6 +455,8 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
   }
 
   const addExample = (defIndex: number) => {
+    const isFirstExample = formData.definitions[defIndex].examples.length === 0
+
     setFormData((prev) => {
       const newDefs = [...prev.definitions]
       newDefs[defIndex] = {
@@ -412,6 +465,11 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
       }
       return { ...prev, definitions: newDefs }
     })
+
+    // Auto switch to example tab when adding first example
+    if (isFirstExample) {
+      setActiveDefTab((prev) => ({ ...prev, [defIndex]: 'example' }))
+    }
   }
 
   const removeExample = (defIndex: number, exIndex: number) => {
@@ -424,473 +482,560 @@ const PhraseContentSection = ({ item, onDelete }: PhraseContentSectionProps) => 
         }
         return { ...prev, definitions: newDefs }
       })
+
+      // Adjust slide index if needed
+      setExampleSlideIndex((prev) => {
+        const currentIndex = prev[defIndex] || 0
+        if (currentIndex >= exIndex && currentIndex > 0) {
+          return { ...prev, [defIndex]: currentIndex - 1 }
+        }
+        return prev
+      })
     }
   }
 
-  const toggleExamplesExpanded = (defIndex: number) => {
-    setExamplesExpanded((prev) => ({
-      ...prev,
-      [defIndex]: !prev[defIndex]
-    }))
+  const goToExampleSlide = (defIndex: number, slideIndex: number) => {
+    setExampleSlideIndex((prev) => ({ ...prev, [defIndex]: slideIndex }))
   }
 
-  const getDisplayValue = (fieldKey: string): string => {
-    if (editingFields[fieldKey]?.isEditing) {
-      return editingFields[fieldKey].pendingValue
+  const goToNextExample = (defIndex: number) => {
+    const currentIndex = exampleSlideIndex[defIndex] || 0
+    const maxIndex = formData.definitions[defIndex]?.examples.length - 1 || 0
+    if (currentIndex < maxIndex) {
+      goToExampleSlide(defIndex, currentIndex + 1)
     }
-
-    if (fieldKey === 'content') return formData.content
-    if (fieldKey === 'pronunciation') return formData.pronunciation
-
-    if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'meaning') return formData.definitions[defIndex]?.meaning || ''
-      if (field === 'translation') return formData.definitions[defIndex]?.translation || ''
-    }
-
-    if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const exIndex = parseInt(parts[2])
-      const field = parts.slice(3).join('_')
-
-      if (field === 'sentence')
-        return formData.definitions[defIndex]?.examples[exIndex]?.sentence || ''
-      if (field === 'translation')
-        return formData.definitions[defIndex]?.examples[exIndex]?.translation || ''
-    }
-
-    return ''
   }
 
-  const hasFieldChanged = (fieldKey: string): boolean => {
-    if (!editingFields[fieldKey]?.isEditing) return false
-
-    const pendingValue = editingFields[fieldKey].pendingValue
-    let initialValue = ''
-
-    if (fieldKey === 'content') {
-      initialValue = currentItem.content
-    } else if (fieldKey === 'pronunciation') {
-      initialValue = currentItem.pronunciation || ''
-    } else if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-      const initialDef = getInitialDefinitions()[defIndex]
-
-      if (field === 'meaning') {
-        initialValue = initialDef?.meaning || ''
-      } else if (field === 'translation') {
-        initialValue = initialDef?.translation || ''
-      }
-    } else if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const exIndex = parseInt(parts[2])
-      const field = parts.slice(3).join('_')
-      const initialDef = getInitialDefinitions()[defIndex]
-
-      if (field === 'sentence') {
-        initialValue = initialDef?.examples[exIndex]?.sentence || ''
-      } else if (field === 'translation') {
-        initialValue = initialDef?.examples[exIndex]?.translation || ''
-      }
+  const goToPrevExample = (defIndex: number) => {
+    const currentIndex = exampleSlideIndex[defIndex] || 0
+    if (currentIndex > 0) {
+      goToExampleSlide(defIndex, currentIndex - 1)
     }
-
-    return pendingValue !== initialValue
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-text-primary">Phrase Details</h2>
-        <button
-          onClick={handleDelete}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors border border-red-500/30"
-          title="Delete this phrase"
-        >
-          <Trash2 className="w-4 h-4" />
-          Delete
-        </button>
+  const renderInformationTab = () => (
+    <div className="p-6 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CustomInput
+          label="Phrase"
+          value={formData.content}
+          onChange={(val) => setFormData((prev) => ({ ...prev, content: val }))}
+          variant="default"
+          size="sm"
+          trackChanges={true}
+          initialValue={currentItem.content}
+          onSave={async (val) => await handleSaveField('content', val)}
+        />
+
+        <CustomInput
+          label="Pronunciation (IPA)"
+          value={formData.pronunciation}
+          onChange={(val) => setFormData((prev) => ({ ...prev, pronunciation: val }))}
+          variant="default"
+          placeholder="vd: /breɪk ðə aɪs/"
+          size="sm"
+          trackChanges={true}
+          initialValue={currentItem.pronunciation || ''}
+          onSave={async (val) => await handleSaveField('pronunciation', val)}
+        />
+
+        <CustomCombobox
+          label="Difficulty"
+          value={formData.difficulty_level > 0 ? formData.difficulty_level.toString() : ''}
+          options={[
+            { value: '1', label: 'Level 1 - Very Easy' },
+            { value: '2', label: 'Level 2 - Easy' },
+            { value: '3', label: 'Level 3' },
+            { value: '4', label: 'Level 4' },
+            { value: '5', label: 'Level 5 - Medium' },
+            { value: '6', label: 'Level 6' },
+            { value: '7', label: 'Level 7' },
+            { value: '8', label: 'Level 8' },
+            { value: '9', label: 'Level 9' },
+            { value: '10', label: 'Level 10 - Very Hard' }
+          ]}
+          onChange={handleDifficultyChange}
+          onSave={handleSaveDifficulty}
+          size="sm"
+        />
+
+        <CustomCombobox
+          label="Frequency"
+          value={formData.frequency_rank > 0 ? formData.frequency_rank.toString() : ''}
+          options={[
+            { value: '1', label: 'Rank 1 - Very Rare' },
+            { value: '2', label: 'Rank 2' },
+            { value: '3', label: 'Rank 3' },
+            { value: '4', label: 'Rank 4' },
+            { value: '5', label: 'Rank 5 - Medium' },
+            { value: '6', label: 'Rank 6' },
+            { value: '7', label: 'Rank 7' },
+            { value: '8', label: 'Rank 8' },
+            { value: '9', label: 'Rank 9' },
+            { value: '10', label: 'Rank 10 - Very Common' }
+          ]}
+          onChange={handleFrequencyChange}
+          onSave={handleSaveFrequency}
+          size="sm"
+        />
+
+        <CustomCombobox
+          label="Category"
+          value={formData.category}
+          options={[
+            { value: 'business', label: 'Business' },
+            { value: 'daily', label: 'Daily' },
+            { value: 'travel', label: 'Travel' },
+            { value: 'academic', label: 'Academic' },
+            { value: 'technical', label: 'Technical' },
+            { value: 'slang', label: 'Slang' },
+            { value: 'formal', label: 'Formal' }
+          ]}
+          onChange={handleCategoryChange}
+          creatable={true}
+          onSave={handleSaveCategory}
+          size="sm"
+        />
       </div>
 
-      <section>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative">
-            <CustomInput
-              label="Phrase"
-              value={getDisplayValue('content')}
-              onChange={(val) => handleFieldChange('content', val)}
-              onFocus={() => {
-                if (!editingFields['content']?.isEditing) {
-                  startEditField('content')
-                }
-              }}
-              variant="default"
-              size="sm"
-            />
-            {editingFields['content']?.isEditing && hasFieldChanged('content') && (
-              <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                <button
-                  onClick={() => confirmFieldChange('content')}
-                  className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                  title="Confirm change"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Tags
+        </label>
+        <CustomTag
+          tags={formData.tags}
+          onTagsChange={handleTagsChange}
+          placeholder="Add tag..."
+          allowDuplicates={false}
+          size="sm"
+        />
+      </div>
+    </div>
+  )
+
+  const renderDefinitionsTab = () => {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-text-primary">Definitions & Examples</h3>
+            <p className="text-sm text-text-secondary mt-1">
+              {formData.definitions.length} definition{formData.definitions.length > 1 ? 's' : ''}{' '}
+              total
+            </p>
           </div>
-
-          <div className="relative">
-            <CustomInput
-              label="Pronunciation (IPA)"
-              value={getDisplayValue('pronunciation')}
-              onChange={(val) => handleFieldChange('pronunciation', val)}
-              onFocus={() => {
-                if (!editingFields['pronunciation']?.isEditing) {
-                  startEditField('pronunciation')
-                }
-              }}
-              variant="default"
-              placeholder="vd: /breɪk ðə aɪs/"
-              size="sm"
-            />
-            {editingFields['pronunciation']?.isEditing && hasFieldChanged('pronunciation') && (
-              <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                <button
-                  onClick={() => confirmFieldChange('pronunciation')}
-                  className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                  title="Confirm change"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-
-          <CustomCombobox
-            label="Difficulty"
-            value={formData.difficulty_level > 0 ? formData.difficulty_level.toString() : ''}
-            options={[
-              { value: '1', label: 'Level 1 - Very Easy' },
-              { value: '2', label: 'Level 2 - Easy' },
-              { value: '3', label: 'Level 3' },
-              { value: '4', label: 'Level 4' },
-              { value: '5', label: 'Level 5 - Medium' },
-              { value: '6', label: 'Level 6' },
-              { value: '7', label: 'Level 7' },
-              { value: '8', label: 'Level 8' },
-              { value: '9', label: 'Level 9' },
-              { value: '10', label: 'Level 10 - Very Hard' }
-            ]}
-            onChange={handleDifficultyChange}
-            size="sm"
-          />
-
-          <CustomCombobox
-            label="Frequency"
-            value={formData.frequency_rank > 0 ? formData.frequency_rank.toString() : ''}
-            options={[
-              { value: '1', label: 'Rank 1 - Very Rare' },
-              { value: '2', label: 'Rank 2' },
-              { value: '3', label: 'Rank 3' },
-              { value: '4', label: 'Rank 4' },
-              { value: '5', label: 'Rank 5 - Medium' },
-              { value: '6', label: 'Rank 6' },
-              { value: '7', label: 'Rank 7' },
-              { value: '8', label: 'Rank 8' },
-              { value: '9', label: 'Rank 9' },
-              { value: '10', label: 'Rank 10 - Very Common' }
-            ]}
-            onChange={handleFrequencyChange}
-            size="sm"
-          />
-
-          <CustomCombobox
-            label="Category"
-            value={formData.category}
-            options={[
-              { value: 'business', label: 'Business' },
-              { value: 'daily', label: 'Daily' },
-              { value: 'travel', label: 'Travel' },
-              { value: 'academic', label: 'Academic' },
-              { value: 'technical', label: 'Technical' },
-              { value: 'slang', label: 'Slang' },
-              { value: 'formal', label: 'Formal' }
-            ]}
-            onChange={handleCategoryChange}
-            creatable={true}
-            size="sm"
-          />
+          <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addDefinition}>
+            Add definition
+          </CustomButton>
         </div>
 
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Tags
-          </label>
-          <CustomTag
-            tags={formData.tags}
-            onTagsChange={handleTagsChange}
-            placeholder="Add tag..."
-            allowDuplicates={false}
-          />
-        </div>
-      </section>
+        <div className="space-y-5">
+          {formData.definitions.map((def: Definition, defIndex: number) => {
+            const currentTab = activeDefTab[defIndex] || 'definition'
+            const currentSlide = exampleSlideIndex[defIndex] || 0
 
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setDefinitionsExpanded(!definitionsExpanded)}
-            className="flex items-center gap-2 text-lg font-semibold text-text-primary hover:text-primary transition-colors"
-          >
-            {definitionsExpanded ? (
-              <ChevronDown className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
-            Definition & Examples
-          </button>
-          {definitionsExpanded && (
-            <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addDefinition}>
-              Add definition
-            </CustomButton>
-          )}
-        </div>
+            return (
+              <div
+                key={def.id}
+                className="group relative p-5 bg-gradient-to-br from-card-background to-card-background/50 border-2 border-border-default rounded-xl hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
+              >
+                {/* HEADER */}
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-border-default">
+                  <div className="flex items-center gap-4">
+                    {/* Badge Number */}
+                    <div
+                      className={`flex items-center justify-center w-8 h-8 rounded-lg ${
+                        [
+                          'bg-blue-500',
+                          'bg-green-500',
+                          'bg-purple-500',
+                          'bg-orange-500',
+                          'bg-pink-500',
+                          'bg-teal-500',
+                          'bg-red-500',
+                          'bg-indigo-500',
+                          'bg-yellow-500',
+                          'bg-cyan-500'
+                        ][defIndex % 10]
+                      }`}
+                    >
+                      <span className="text-white font-bold text-base">{defIndex + 1}</span>
+                    </div>
 
-        {definitionsExpanded && (
-          <div className="space-y-4">
-            {formData.definitions.map((def: Definition, defIndex: number) => {
-              return (
-                <div key={def.id} className="p-4 border border-border-default rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-text-secondary">
-                      Definition {defIndex + 1}
-                    </span>
-                    {formData.definitions.length > 1 && (
+                    {/* Tab Bar */}
+                    <div className="flex items-center gap-1 p-1 bg-background/50 rounded-lg border border-border-default">
                       <button
-                        onClick={() => removeDefinition(defIndex)}
-                        className="text-red-500 hover:text-red-600"
+                        onClick={() =>
+                          setActiveDefTab((prev) => ({ ...prev, [defIndex]: 'definition' }))
+                        }
+                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
+                          currentTab === 'definition'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-card-background'
+                        }`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        Definition
                       </button>
-                    )}
+                      <button
+                        onClick={() =>
+                          setActiveDefTab((prev) => ({ ...prev, [defIndex]: 'example' }))
+                        }
+                        className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-2 ${
+                          currentTab === 'example'
+                            ? 'bg-primary text-white shadow-sm'
+                            : 'text-text-secondary hover:text-text-primary hover:bg-card-background'
+                        }`}
+                      >
+                        Example
+                        <span
+                          className={`px-1.5 py-0.5 text-xs rounded-full font-semibold ${
+                            currentTab === 'example'
+                              ? 'bg-white/20 text-white'
+                              : 'bg-primary/10 text-primary'
+                          }`}
+                        >
+                          {def.examples.length}
+                        </span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="relative">
+                  {/* Delete Button */}
+                  {formData.definitions.length > 1 && (
+                    <button
+                      onClick={() => removeDefinition(defIndex)}
+                      className="p-2 rounded-lg text-text-secondary hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                      title="Remove definition"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* TAB CONTENT với Framer Motion */}
+                <AnimatePresence mode="wait">
+                  {currentTab === 'definition' && (
+                    <motion.div
+                      key={`def-content-${defIndex}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-4"
+                    >
                       <CustomInput
                         label="Meaning (English)"
-                        value={getDisplayValue(`def_${defIndex}_meaning`)}
-                        onChange={(val) => handleFieldChange(`def_${defIndex}_meaning`, val)}
-                        onFocus={() => {
-                          if (!editingFields[`def_${defIndex}_meaning`]?.isEditing) {
-                            startEditField(`def_${defIndex}_meaning`)
-                          }
-                        }}
+                        value={formData.definitions[defIndex]?.meaning || ''}
+                        onChange={(val) => handleDefinitionChange(defIndex, 'meaning', val)}
                         variant="default"
                         placeholder="Enter English definition"
                         size="sm"
+                        multiline={true}
+                        minRows={1}
+                        maxRows={10}
+                        autoResize={true}
+                        trackChanges={true}
+                        initialValue={initialDefinitions[defIndex]?.meaning || ''}
+                        onSave={async (val) =>
+                          await handleSaveField(`def_${defIndex}_meaning`, val)
+                        }
                       />
-                      {editingFields[`def_${defIndex}_meaning`]?.isEditing &&
-                        hasFieldChanged(`def_${defIndex}_meaning`) && (
-                          <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                            <button
-                              onClick={() => confirmFieldChange(`def_${defIndex}_meaning`)}
-                              className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                              title="Save meaning"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                    </div>
 
-                    <div className="relative">
-                      <CustomInput
-                        label="Translate"
-                        value={getDisplayValue(`def_${defIndex}_translation`)}
-                        onChange={(val) => handleFieldChange(`def_${defIndex}_translation`, val)}
-                        onFocus={() => {
-                          if (!editingFields[`def_${defIndex}_translation`]?.isEditing) {
-                            startEditField(`def_${defIndex}_translation`)
+                      <div className="relative">
+                        <CustomInput
+                          label="Example sentence"
+                          value={def.examples[currentSlide]?.sentence || ''}
+                          onChange={(val) => {
+                            const newDefs = [...formData.definitions]
+                            const newExamples = [...newDefs[defIndex].examples]
+                            newExamples[currentSlide] = {
+                              ...newExamples[currentSlide],
+                              sentence: val
+                            }
+                            newDefs[defIndex] = { ...newDefs[defIndex], examples: newExamples }
+                            setFormData((prev) => ({ ...prev, definitions: newDefs }))
+                          }}
+                          variant="default"
+                          placeholder="Example sentence"
+                          size="sm"
+                          multiline={true}
+                          minRows={1}
+                          maxRows={10}
+                          autoResize={true}
+                          trackChanges={true}
+                          initialValue={
+                            initialDefinitions[defIndex]?.examples[currentSlide]?.sentence || ''
                           }
-                        }}
-                        variant="default"
-                        placeholder="Enter translation"
+                          onSave={async (val) =>
+                            await handleSaveField(`ex_${defIndex}_${currentSlide}_sentence`, val)
+                          }
+                        />
+                      </div>
+
+                      <CustomCombobox
+                        label="Type"
+                        value={def.phrase_type || ''}
+                        options={PHRASE_TYPES}
+                        onChange={(val) => handlePhraseTypeChange(defIndex, val)}
+                        onSave={(val) => handleSavePhraseType(defIndex, val)}
+                        placeholder="Select phrase type"
                         size="sm"
                       />
-                      {editingFields[`def_${defIndex}_translation`]?.isEditing &&
-                        hasFieldChanged(`def_${defIndex}_translation`) && (
-                          <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                            <button
-                              onClick={() => confirmFieldChange(`def_${defIndex}_translation`)}
-                              className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                              title="Save translation"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          </div>
-                        )}
-                    </div>
+                    </motion.div>
+                  )}
 
-                    <CustomCombobox
-                      label="Type"
-                      value={def.phrase_type || ''}
-                      options={PHRASE_TYPES}
-                      onChange={(val) =>
-                        handleDefinitionChange(
-                          defIndex,
-                          'phrase_type',
-                          typeof val === 'string' ? val : val[0] || ''
-                        )
-                      }
-                      placeholder="Select phrase type"
-                      size="sm"
-                    />
-                  </div>
+                  {currentTab === 'example' && (
+                    <motion.div
+                      key={`example-content-${defIndex}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {/* Custom Example Slider */}
+                      <div className="relative">
+                        {def.examples.length > 0 ? (
+                          <>
+                            {/* Example Content */}
+                            <div className="transition-all duration-200">
+                              <div className="space-y-4">
+                                <CustomInput
+                                  label="Example sentence"
+                                  value={def.examples[currentSlide]?.sentence || ''}
+                                  onChange={(val) => {
+                                    const newDefs = [...formData.definitions]
+                                    const newExamples = [...newDefs[defIndex].examples]
+                                    newExamples[currentSlide] = {
+                                      ...newExamples[currentSlide],
+                                      sentence: val
+                                    }
+                                    newDefs[defIndex] = {
+                                      ...newDefs[defIndex],
+                                      examples: newExamples
+                                    }
+                                    setFormData((prev) => ({ ...prev, definitions: newDefs }))
+                                  }}
+                                  variant="default"
+                                  placeholder="Example sentence"
+                                  size="sm"
+                                  multiline={true}
+                                  minRows={1}
+                                  maxRows={10}
+                                  autoResize={true}
+                                  trackChanges={true}
+                                  initialValue={
+                                    initialDefinitions[defIndex]?.examples[currentSlide]
+                                      ?.sentence || ''
+                                  }
+                                  onSave={async (val) =>
+                                    await handleSaveField(
+                                      `ex_${defIndex}_${currentSlide}_sentence`,
+                                      val
+                                    )
+                                  }
+                                />
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => toggleExamplesExpanded(defIndex)}
-                        className="flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
-                      >
-                        {examplesExpanded[defIndex] ? (
-                          <ChevronDown className="w-4 h-4" />
-                        ) : (
-                          <ChevronRight className="w-4 h-4" />
-                        )}
-                        Example ({def.examples.length})
-                      </button>
-                      {examplesExpanded[defIndex] && (
-                        <button
-                          onClick={() => addExample(defIndex)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs text-text-secondary hover:text-text-primary rounded transition-colors whitespace-nowrap"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          Add example
-                        </button>
-                      )}
-                    </div>
+                                <CustomInput
+                                  label="Translate (example)"
+                                  value={def.examples[currentSlide]?.translation || ''}
+                                  onChange={(val) => {
+                                    const newDefs = [...formData.definitions]
+                                    const newExamples = [...newDefs[defIndex].examples]
+                                    newExamples[currentSlide] = {
+                                      ...newExamples[currentSlide],
+                                      translation: val
+                                    }
+                                    newDefs[defIndex] = {
+                                      ...newDefs[defIndex],
+                                      examples: newExamples
+                                    }
+                                    setFormData((prev) => ({ ...prev, definitions: newDefs }))
+                                  }}
+                                  variant="default"
+                                  placeholder="Translation"
+                                  size="sm"
+                                  multiline={true}
+                                  minRows={1}
+                                  maxRows={10}
+                                  autoResize={true}
+                                  trackChanges={true}
+                                  initialValue={
+                                    initialDefinitions[defIndex]?.examples[currentSlide]
+                                      ?.translation || ''
+                                  }
+                                  onSave={async (val) =>
+                                    await handleSaveField(
+                                      `ex_${defIndex}_${currentSlide}_translation`,
+                                      val
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
 
-                    {examplesExpanded[defIndex] && (
-                      <div className="space-y-2">
-                        {def.examples.map((_example: any, exIndex: number) => (
-                          <div key={exIndex} className="p-3 bg-card-background rounded space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-text-secondary">
-                                Example {exIndex + 1}
-                              </span>
-                              {def.examples.length > 1 && (
-                                <button
-                                  onClick={() => removeExample(defIndex, exIndex)}
-                                  className="text-red-400 hover:text-red-500"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
+                            {/* Pagination + Action Buttons */}
+                            <div className="flex items-center justify-between mt-4">
+                              {/* Left: Pagination */}
+                              {def.examples.length > 1 ? (
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => goToPrevExample(defIndex)}
+                                    disabled={currentSlide === 0}
+                                    className="p-2 rounded-lg bg-card-background border border-border-default hover:border-primary/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                                    title="Previous example"
+                                  >
+                                    <ChevronLeft className="w-4 h-4" />
+                                  </button>
+
+                                  <span className="text-sm font-medium text-text-primary">
+                                    {currentSlide + 1} / {def.examples.length}
+                                  </span>
+
+                                  <button
+                                    onClick={() => goToNextExample(defIndex)}
+                                    disabled={currentSlide === def.examples.length - 1}
+                                    className="p-2 rounded-lg bg-card-background border border-border-default hover:border-primary/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                                    title="Next example"
+                                  >
+                                    <ChevronRight className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div></div>
                               )}
+
+                              {/* Right: Action Buttons */}
+                              <div className="flex items-center gap-2">
+                                {def.examples.length > 1 && (
+                                  <button
+                                    onClick={() => removeExample(defIndex, currentSlide)}
+                                    className="p-2 rounded-lg text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                                    title="Remove example"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <CustomButton
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={Plus}
+                                  onClick={() => startCreateExample(defIndex)}
+                                  children={undefined}
+                                ></CustomButton>
+                              </div>
                             </div>
 
-                            <div className="relative">
-                              <CustomInput
-                                label="Example sentence"
-                                value={getDisplayValue(`ex_${defIndex}_${exIndex}_sentence`)}
-                                onChange={(val) =>
-                                  handleFieldChange(`ex_${defIndex}_${exIndex}_sentence`, val)
-                                }
-                                onFocus={() => {
-                                  if (
-                                    !editingFields[`ex_${defIndex}_${exIndex}_sentence`]?.isEditing
-                                  ) {
-                                    startEditField(`ex_${defIndex}_${exIndex}_sentence`)
-                                  }
-                                }}
-                                variant="default"
-                                placeholder="Example sentence"
-                                size="sm"
-                              />
-                              {editingFields[`ex_${defIndex}_${exIndex}_sentence`]?.isEditing &&
-                                hasFieldChanged(`ex_${defIndex}_${exIndex}_sentence`) && (
-                                  <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                                    <button
-                                      onClick={() =>
-                                        confirmFieldChange(`ex_${defIndex}_${exIndex}_sentence`)
-                                      }
-                                      className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                                      title="Save sentence"
-                                    >
-                                      <Check className="w-4 h-4" />
-                                    </button>
+                            {/* Create Example Form */}
+                            {creatingExample[defIndex] && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.2 }}
+                                className="mt-4 p-4 bg-background/50 border border-border-default rounded-lg"
+                              >
+                                <h4 className="text-sm font-semibold text-text-primary mb-4">
+                                  Create Example
+                                </h4>
+                                <div className="space-y-3">
+                                  <CustomInput
+                                    label="Example sentence"
+                                    value={newExampleData[defIndex]?.sentence || ''}
+                                    onChange={(val) =>
+                                      handleNewExampleChange(defIndex, 'sentence', val)
+                                    }
+                                    variant="default"
+                                    placeholder="Enter example sentence"
+                                    size="sm"
+                                    multiline={true}
+                                    minRows={1}
+                                    maxRows={10}
+                                    autoResize={true}
+                                  />
+                                  <CustomInput
+                                    label="Translate (example)"
+                                    value={newExampleData[defIndex]?.translation || ''}
+                                    onChange={(val) =>
+                                      handleNewExampleChange(defIndex, 'translation', val)
+                                    }
+                                    variant="default"
+                                    placeholder="Enter translation"
+                                    size="sm"
+                                    multiline={true}
+                                    minRows={1}
+                                    maxRows={10}
+                                    autoResize={true}
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <div className="w-auto">
+                                      <CustomButton
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => cancelCreateExample(defIndex)}
+                                      >
+                                        Cancel
+                                      </CustomButton>
+                                    </div>
+                                    <div className="w-auto">
+                                      <CustomButton
+                                        variant="primary"
+                                        size="sm"
+                                        onClick={() => confirmCreateExample(defIndex)}
+                                      >
+                                        Create
+                                      </CustomButton>
+                                    </div>
                                   </div>
-                                )}
-                            </div>
-
-                            <div className="relative">
-                              <CustomInput
-                                label="Translate (example)"
-                                value={getDisplayValue(`ex_${defIndex}_${exIndex}_translation`)}
-                                onChange={(val) =>
-                                  handleFieldChange(`ex_${defIndex}_${exIndex}_translation`, val)
-                                }
-                                onFocus={() => {
-                                  if (
-                                    !editingFields[`ex_${defIndex}_${exIndex}_translation`]
-                                      ?.isEditing
-                                  ) {
-                                    startEditField(`ex_${defIndex}_${exIndex}_translation`)
-                                  }
-                                }}
-                                variant="default"
-                                placeholder="Translation"
-                                size="sm"
-                              />
-                              {editingFields[`ex_${defIndex}_${exIndex}_translation`]?.isEditing &&
-                                hasFieldChanged(`ex_${defIndex}_${exIndex}_translation`) && (
-                                  <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                                    <button
-                                      onClick={() =>
-                                        confirmFieldChange(`ex_${defIndex}_${exIndex}_translation`)
-                                      }
-                                      className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                                      title="Save translation"
-                                    >
-                                      <Check className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                )}
-                            </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="p-8 text-center text-text-secondary">
+                            <p className="mb-4">No examples yet</p>
+                            <CustomButton
+                              variant="secondary"
+                              size="sm"
+                              icon={Plus}
+                              onClick={() => addExample(defIndex)}
+                            >
+                              Add first example
+                            </CustomButton>
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
-      <section>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Metadata</h3>
-        <Metadata
-          metadata={formData.metadata}
-          onMetadataChange={handleMetadataChange}
-          readOnly={false}
-          allowCreate={true}
-          allowDelete={true}
-          allowEdit={true}
-          size="sm"
-          collapsible={true}
-          defaultExpanded={false}
-        />
-      </section>
+  const renderMetadataTab = () => (
+    <div className="p-6">
+      <Metadata
+        metadata={formData.metadata}
+        onMetadataChange={handleMetadataChange}
+        readOnly={false}
+        allowCreate={true}
+        allowDelete={true}
+        allowEdit={true}
+        size="sm"
+        collapsible={true}
+        defaultExpanded={true}
+      />
+    </div>
+  )
+
+  return (
+    <div className="h-full">
+      {activeTab === 'information' && renderInformationTab()}
+      {activeTab === 'definitions' && renderDefinitionsTab()}
+      {activeTab === 'metadata' && renderMetadataTab()}
     </div>
   )
 }

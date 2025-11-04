@@ -12,6 +12,7 @@ interface CustomComboboxProps {
   value: string | string[]
   options: Option[]
   onChange: (value: string | string[]) => void
+  onSave?: (value: string | string[]) => void | Promise<void>
   className?: string
   placeholder?: string
   searchable?: boolean
@@ -28,6 +29,7 @@ const CustomCombobox: FC<CustomComboboxProps> = ({
   value,
   options,
   onChange,
+  onSave,
   className,
   placeholder = 'Please enter/select your option...',
   searchable,
@@ -49,6 +51,7 @@ const CustomCombobox: FC<CustomComboboxProps> = ({
       value={value}
       options={options}
       onChange={onChange}
+      onSave={onSave}
       placeholder={placeholder}
       className={className}
       multiple={multiple}
@@ -65,6 +68,7 @@ const ComboboxInput: FC<Omit<CustomComboboxProps, 'searchable'> & { isInput?: bo
   value,
   options,
   onChange,
+  onSave,
   className,
   placeholder,
   multiple = false,
@@ -260,19 +264,27 @@ const ComboboxInput: FC<Omit<CustomComboboxProps, 'searchable'> & { isInput?: bo
     }
   }
 
-  const toggleMulti = (val: string) => {
+  const toggleMulti = async (val: string) => {
     if (!isMulti) {
       onChange(val)
+      if (onSave) {
+        await onSave(val)
+      }
       setShowDrop(false)
       setInput('')
       setIsInputFocused(false)
       return
     }
     const arr = Array.isArray(value) ? value.slice() : []
+    let newValue: string[]
     if (arr.includes(val)) {
-      onChange(arr.filter((v) => v !== val))
+      newValue = arr.filter((v) => v !== val)
     } else {
-      onChange([...arr, val])
+      newValue = [...arr, val]
+    }
+    onChange(newValue)
+    if (onSave) {
+      await onSave(newValue)
     }
     setInput('')
     setShowDrop(true)
@@ -286,7 +298,7 @@ const ComboboxInput: FC<Omit<CustomComboboxProps, 'searchable'> & { isInput?: bo
   }
 
   // Creatable: when pressing Enter, create new tag
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = async (e: KeyboardEvent<HTMLInputElement>) => {
     if (
       creatable &&
       e.key === 'Enter' &&
@@ -299,12 +311,18 @@ const ComboboxInput: FC<Omit<CustomComboboxProps, 'searchable'> & { isInput?: bo
         label: input.trim()
       }
       setDynamicOptions((prev) => [...prev, newOption])
+      let newValue: string | string[]
       if (isMulti) {
         const curArr = Array.isArray(value) ? value.slice() : []
-        onChange([...curArr, newOption.value])
+        newValue = [...curArr, newOption.value]
+        onChange(newValue)
       } else {
-        onChange(newOption.value)
+        newValue = newOption.value
+        onChange(newValue)
         setShowDrop(false)
+      }
+      if (onSave) {
+        await onSave(newValue)
       }
       setInput('')
     }

@@ -161,12 +161,6 @@ const SessionManagerPage = () => {
       // 2. Tạo prompt để generate questions
       const prompt = buildQuestionsPrompt(vocabularyIds, grammarIds)
 
-      // ✅ LOG: In ra prompt gửi cho Gemini
-      console.log('[SessionManager] 📤 Prompt gửi cho Gemini API:')
-      console.log('='.repeat(80))
-      console.log(prompt)
-      console.log('='.repeat(80))
-
       // 3. Gọi AI để tạo questions
       const apiKeysStr = await window.api!.storage.get('gemini_api_keys')
 
@@ -200,12 +194,6 @@ const SessionManagerPage = () => {
       const service = createCreateCollectionService(selectedKey.key)
       const textResponse = await service.generateQuestions(prompt)
 
-      // ✅ LOG: In ra raw response từ Gemini
-      console.log('[SessionManager] 📥 Raw response từ Gemini API:')
-      console.log('='.repeat(80))
-      console.log(textResponse)
-      console.log('='.repeat(80))
-
       // Parse JSON từ response với error handling tốt hơn
       let parsed: any
       try {
@@ -219,12 +207,6 @@ const SessionManagerPage = () => {
         }
 
         parsed = JSON.parse(jsonText)
-
-        // ✅ LOG: In ra parsed JSON data
-        console.log('[SessionManager] ✅ Parsed JSON data từ Gemini:')
-        console.log('='.repeat(80))
-        console.log(JSON.stringify(parsed, null, 2))
-        console.log('='.repeat(80))
       } catch (parseError) {
         console.error('[SessionManager] ❌ JSON parse error:', parseError)
         console.error(

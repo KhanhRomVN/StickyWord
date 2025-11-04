@@ -50,30 +50,18 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
   const getApiFilterType = (filter: FilterType): 'all' | 'word' | 'phrase' | 'grammar' => {
     if (filter === 'all') return 'all'
     if (filter === 'word' || filter === 'phrase') return filter
-    // Nếu là grammar types ('tense', 'structure', 'rule', 'pattern', 'grammar'), trả về 'grammar'
     return 'grammar'
   }
 
-  // ✅ FIX: Track if initial load is done
   const initialLoadDone = useRef(false)
   const isMounted = useRef(true)
-
-  // ✅ FIX: Load items only once on mount
   useEffect(() => {
-    console.log(
-      '[CollectionListPanel] 🎬 Initial useEffect triggered, initialLoadDone:',
-      initialLoadDone.current
-    )
     if (!initialLoadDone.current) {
-      console.log('[CollectionListPanel] 🔥 First load - calling loadItems("all")')
       loadItems('all')
       initialLoadDone.current = true
-    } else {
-      console.log('[CollectionListPanel] ⏭️ Skip initial load - already done')
     }
   }, [])
 
-  // ✅ FIX: Set isMounted = true khi component mount
   useEffect(() => {
     isMounted.current = true
 
@@ -82,7 +70,6 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
     }
   }, [])
 
-  // ✅ FIX: Listen for item deletion events
   useEffect(() => {
     const handleItemDeletedEvent = () => {
       if (isMounted.current) {
@@ -100,41 +87,18 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
 
   // ✅ FIX: useCallback để tránh re-create function
   const loadItems = useCallback(async (filter: FilterType) => {
-    console.log('[CollectionListPanel] 🔄 loadItems called with filter:', filter)
-
     try {
-      console.log('[CollectionListPanel] 📝 Setting isLoading to true')
       setIsLoading(true)
 
       const apiFilter = getApiFilterType(filter)
 
-      console.log('[CollectionListPanel] 🔍 Loading items with filter:', {
-        filterType: filter,
-        apiFilter: apiFilter,
-        isMounted: isMounted.current
-      })
-
       const { getCloudDatabase } = await import('../../../../../services/CloudDatabaseService')
       const db = getCloudDatabase()
 
-      console.log('[CollectionListPanel] 🗄️ Database status:', {
-        dbExists: !!db,
-        isMounted: isMounted.current
-      })
-
       if (db && isMounted.current) {
-        console.log('[CollectionListPanel] 🚀 Calling db.getAllItems...')
         const response = await db.getAllItems(apiFilter)
-        console.log('[CollectionListPanel] ✅ Loaded items:', {
-          count: response.length,
-          filter: apiFilter,
-          items: response,
-          isMounted: isMounted.current
-        })
 
-        console.log('[CollectionListPanel] 💾 Setting items state...')
         setItems(response as (vocabulary_item | grammar_item)[])
-        console.log('[CollectionListPanel] ✔️ Items state set successfully')
       } else {
         console.warn('[CollectionListPanel] ⚠️ Database not connected or unmounted:', {
           db: !!db,
@@ -154,10 +118,6 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
         setItems([])
       }
     } finally {
-      console.log(
-        '[CollectionListPanel] 🏁 Finally block - setting isLoading to false, isMounted:',
-        isMounted.current
-      )
       if (isMounted.current) {
         setIsLoading(false)
       }
@@ -368,13 +328,6 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
       {/* Items List */}
       <div className="flex-1 overflow-y-auto">
         {(() => {
-          console.log('[CollectionListPanel] 🎨 Render state:', {
-            isLoading,
-            itemsLength: items.length,
-            filteredLength: filteredAndSortedItems.length,
-            searchTerm,
-            filters
-          })
           return null
         })()}
 
@@ -428,7 +381,7 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
         defaultType={createType}
       />
 
-      {/* ✅ Filter Overlay */}
+      {/* Filter Overlay */}
       <FilterOverlay
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}

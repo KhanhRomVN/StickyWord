@@ -44,9 +44,10 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
         const { connectionString: savedConnectionString } = saved
 
         if (savedConnectionString) {
-          const success = await testConnection(savedConnectionString)
+          // ✅ Chỉ kiểm tra status từ main process thay vì test lại
+          const status = await window.api.cloudDatabase.status()
 
-          if (success) {
+          if (status.isConnected) {
             const { setCloudDatabase } = await import('../../services/CloudDatabaseService')
             setCloudDatabase(savedConnectionString)
 
@@ -54,11 +55,19 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
             setIsConnected(true)
             setError(null)
           } else {
-            console.warn(
-              '[DatabaseProvider] ⚠️ Saved connection invalid, NOT removing from storage'
-            )
-            // ✅ KHÔNG xóa khi test fail, có thể do lỗi network tạm thời
-            setError('Không thể kết nối đến database. Vui lòng kiểm tra lại trong Settings.')
+            const connectResult = await window.api.cloudDatabase.connect(savedConnectionString)
+
+            if (connectResult.success) {
+              const { setCloudDatabase } = await import('../../services/CloudDatabaseService')
+              setCloudDatabase(savedConnectionString)
+
+              setConnectionString(savedConnectionString)
+              setIsConnected(true)
+              setError(null)
+            } else {
+              console.warn('[DatabaseProvider] ⚠️ Failed to reconnect:', connectResult.error)
+              setError('Không thể kết nối đến database. Vui lòng kiểm tra lại trong Settings.')
+            }
           }
         }
       }
@@ -72,20 +81,21 @@ export const DatabaseProvider = ({ children }: DatabaseProviderProps) => {
 
   const testConnection = async (connString: string): Promise<boolean> => {
     try {
-      const { CloudDatabaseService } = await import('../../services/CloudDatabaseService')
-      const service = new CloudDatabaseService(connString)
-      const isConnected = await service.testConnection()
-
-      if (isConnected) {
-        // ✅ Đảm bảo main process cũng connect
-        const connectResult = await service.connect()
-        if (!connectResult) {
-          console.error('[DatabaseProvider] Main process connection failed')
-          return false
-        }
+      // ✅ Không cần test nữa, chỉ cần connect qua main process
+      if (!window.api) {
+        console.error('[DatabaseProvider] window.api not available')
+        return false
       }
 
-      return isConnected
+      const connectResult = await window.api.cloudDatabase.connect(connString)
+
+      if (connectResult.success) {
+        const { setCloudDatabase } = await import('../../services/CloudDatabaseService')
+        setCloudDatabase(connString)
+        return true
+      }
+
+      return false
     } catch (err) {
       console.error('[DatabaseProvider] Connection test failed:', err)
       return false

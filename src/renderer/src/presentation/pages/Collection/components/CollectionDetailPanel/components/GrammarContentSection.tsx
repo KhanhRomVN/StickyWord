@@ -5,11 +5,13 @@ import CustomCombobox from '../../../../../../components/common/CustomCombobox'
 import CustomTag from '../../../../../../components/common/CustomTag'
 import Metadata from '../../../../../../components/common/Metadata'
 import CustomButton from '../../../../../../components/common/CustomButton'
-import { Plus, Trash2, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 interface GrammarContentSectionProps {
   item: grammar_item
   onDelete?: (itemId: string) => void
+  activeTab: 'information' | 'definitions' | 'metadata'
 }
 
 interface Definition {
@@ -54,8 +56,24 @@ const GRAMMAR_ITEM_TYPES = [
   { value: 'pattern', label: 'Pattern' }
 ]
 
-const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) => {
+const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSectionProps) => {
   const [currentItem, setCurrentItem] = useState<grammar_item>(item)
+  const [creatingExample, setCreatingExample] = useState(false)
+  const [creatingMistake, setCreatingMistake] = useState(false)
+  const [newExampleData, setNewExampleData] = useState({
+    sentence: '',
+    translation: '',
+    usage_note: ''
+  })
+  const [newMistakeData, setNewMistakeData] = useState({
+    incorrect: '',
+    correct: '',
+    explanation: ''
+  })
+
+  // Example slider state
+  const [exampleSlideIndex, setExampleSlideIndex] = useState(0)
+  const [mistakeSlideIndex, setMistakeSlideIndex] = useState(0)
 
   useEffect(() => {
     setCurrentItem(item)
@@ -63,8 +81,8 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
 
   const getInitialDefinitions = (): Definition[] => {
     if (currentItem.metadata?.definitions && Array.isArray(currentItem.metadata.definitions)) {
-      return currentItem.metadata.definitions.map((def: any) => ({
-        id: def.id || `def_${Date.now()}`,
+      return currentItem.metadata.definitions.map((def: any, index: number) => ({
+        id: def.id || `def_${Date.now()}_${index}`,
         description: def.description || '',
         explanation: def.explanation || '',
         structure: def.structure || '',
@@ -84,8 +102,8 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
 
   const getInitialExamples = (): Example[] => {
     if (currentItem.metadata?.examples && Array.isArray(currentItem.metadata.examples)) {
-      return currentItem.metadata.examples.map((ex: any) => ({
-        id: ex.id || `ex_${Date.now()}`,
+      return currentItem.metadata.examples.map((ex: any, index: number) => ({
+        id: ex.id || `ex_${Date.now()}_${index}`,
         sentence: ex.sentence || '',
         translation: ex.translation || '',
         usage_note: ex.usage_note || ''
@@ -99,8 +117,8 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
       currentItem.metadata?.commonMistakes &&
       Array.isArray(currentItem.metadata.commonMistakes)
     ) {
-      return currentItem.metadata.commonMistakes.map((mistake: any) => ({
-        id: mistake.id || `mistake_${Date.now()}`,
+      return currentItem.metadata.commonMistakes.map((mistake: any, index: number) => ({
+        id: mistake.id || `mistake_${Date.now()}_${index}`,
         incorrect: mistake.incorrect || '',
         correct: mistake.correct || '',
         explanation: mistake.explanation || ''
@@ -122,15 +140,22 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
     metadata: currentItem.metadata || {}
   })
 
-  const [editingFields, setEditingFields] = useState<{
-    [key: string]: { isEditing: boolean; pendingValue: string }
-  }>({})
+  // Cache initial data
+  const [initialData, setInitialData] = useState({
+    definitions: getInitialDefinitions(),
+    examples: getInitialExamples(),
+    commonMistakes: getInitialCommonMistakes()
+  })
 
-  const [definitionsExpanded, setDefinitionsExpanded] = useState(false)
-  const [examplesExpanded, setExamplesExpanded] = useState(false)
-  const [mistakesExpanded, setMistakesExpanded] = useState(false)
+  useEffect(() => {
+    const newInitialData = {
+      definitions: getInitialDefinitions(),
+      examples: getInitialExamples(),
+      commonMistakes: getInitialCommonMistakes()
+    }
+    setInitialData(newInitialData)
+  }, [currentItem.id])
 
-  // ✅ FIX: Đồng bộ formData khi currentItem thay đổi
   useEffect(() => {
     setFormData({
       title: currentItem.title,
@@ -144,183 +169,132 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
       tags: currentItem.tags || [],
       metadata: currentItem.metadata || {}
     })
-    setEditingFields({})
-    setDefinitionsExpanded(false)
-    setExamplesExpanded(false)
-    setMistakesExpanded(false)
+    setExampleSlideIndex(0)
+    setMistakeSlideIndex(0)
   }, [currentItem.id])
 
-  const handleDelete = () => {
-    if (confirm(`Bạn có chắc chắn muốn xóa điểm ngữ pháp "${currentItem.title}" này không?`)) {
-      onDelete?.(currentItem.id)
-    }
-  }
-
-  const startEditField = (fieldKey: string) => {
-    let currentValue = ''
-
-    if (fieldKey === 'title') {
-      currentValue = currentItem.title
-    } else if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'description') {
-        currentValue = formData.definitions[defIndex]?.description || ''
-      } else if (field === 'explanation') {
-        currentValue = formData.definitions[defIndex]?.explanation || ''
-      } else if (field === 'structure') {
-        currentValue = formData.definitions[defIndex]?.structure || ''
-      } else if (field === 'translation') {
-        currentValue = formData.definitions[defIndex]?.translation || ''
-      }
-    } else if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const exIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'sentence') {
-        currentValue = formData.examples[exIndex]?.sentence || ''
-      } else if (field === 'translation') {
-        currentValue = formData.examples[exIndex]?.translation || ''
-      } else if (field === 'usage_note') {
-        currentValue = formData.examples[exIndex]?.usage_note || ''
-      }
-    } else if (fieldKey.startsWith('mistake_')) {
-      const parts = fieldKey.split('_')
-      const mistakeIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'incorrect') {
-        currentValue = formData.commonMistakes[mistakeIndex]?.incorrect || ''
-      } else if (field === 'correct') {
-        currentValue = formData.commonMistakes[mistakeIndex]?.correct || ''
-      } else if (field === 'explanation') {
-        currentValue = formData.commonMistakes[mistakeIndex]?.explanation || ''
-      }
-    }
-
-    setEditingFields((prev) => ({
-      ...prev,
-      [fieldKey]: {
-        isEditing: true,
-        pendingValue: currentValue
-      }
-    }))
-  }
-
-  const handleFieldChange = (fieldKey: string, value: string) => {
-    setEditingFields((prev) => ({
-      ...prev,
-      [fieldKey]: {
-        ...prev[fieldKey],
-        pendingValue: value
-      }
-    }))
-  }
-
-  const confirmFieldChange = async (fieldKey: string) => {
-    const newValue = editingFields[fieldKey]?.pendingValue || ''
-
-    let updatedDefinitions = [...formData.definitions]
-    let updatedExamples = [...formData.examples]
-    let updatedMistakes = [...formData.commonMistakes]
-
-    if (fieldKey === 'title') {
-      setFormData((prev) => ({ ...prev, title: newValue }))
-    } else if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'description') {
-        updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], description: newValue }
-      } else if (field === 'explanation') {
-        updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], explanation: newValue }
-      } else if (field === 'structure') {
-        updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], structure: newValue }
-      } else if (field === 'translation') {
-        updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], translation: newValue }
-      }
-
-      setFormData((prev) => ({ ...prev, definitions: updatedDefinitions }))
-    } else if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const exIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'sentence') {
-        updatedExamples[exIndex] = { ...updatedExamples[exIndex], sentence: newValue }
-      } else if (field === 'translation') {
-        updatedExamples[exIndex] = { ...updatedExamples[exIndex], translation: newValue }
-      } else if (field === 'usage_note') {
-        updatedExamples[exIndex] = { ...updatedExamples[exIndex], usage_note: newValue }
-      }
-
-      setFormData((prev) => ({ ...prev, examples: updatedExamples }))
-    } else if (fieldKey.startsWith('mistake_')) {
-      const parts = fieldKey.split('_')
-      const mistakeIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'incorrect') {
-        updatedMistakes[mistakeIndex] = { ...updatedMistakes[mistakeIndex], incorrect: newValue }
-      } else if (field === 'correct') {
-        updatedMistakes[mistakeIndex] = { ...updatedMistakes[mistakeIndex], correct: newValue }
-      } else if (field === 'explanation') {
-        updatedMistakes[mistakeIndex] = { ...updatedMistakes[mistakeIndex], explanation: newValue }
-      }
-
-      setFormData((prev) => ({ ...prev, commonMistakes: updatedMistakes }))
-    }
-
+  const handleSaveField = async (fieldKey: string, newValue: string) => {
     try {
-      const updatedMetadata = {
-        ...formData.metadata,
-        definitions: updatedDefinitions,
-        examples: updatedExamples,
-        commonMistakes: updatedMistakes
+      let updatedDefinitions = [...formData.definitions]
+      let updatedExamples = [...formData.examples]
+      let updatedMistakes = [...formData.commonMistakes]
+      let updatedItem: Partial<grammar_item> = {}
+
+      if (fieldKey === 'title') {
+        updatedItem.title = newValue
+      } else if (fieldKey.startsWith('def_')) {
+        const parts = fieldKey.split('_')
+        const defIndex = parseInt(parts[1])
+        const field = parts.slice(2).join('_')
+
+        if (field === 'description') {
+          updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], description: newValue }
+        } else if (field === 'explanation') {
+          updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], explanation: newValue }
+        } else if (field === 'structure') {
+          updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], structure: newValue }
+        } else if (field === 'translation') {
+          updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], translation: newValue }
+        }
+
+        updatedItem.metadata = {
+          ...formData.metadata,
+          definitions: updatedDefinitions
+        }
+      } else if (fieldKey.startsWith('ex_')) {
+        const parts = fieldKey.split('_')
+        const exIndex = parseInt(parts[1])
+        const field = parts.slice(2).join('_')
+
+        if (field === 'sentence') {
+          updatedExamples[exIndex] = { ...updatedExamples[exIndex], sentence: newValue }
+        } else if (field === 'translation') {
+          updatedExamples[exIndex] = { ...updatedExamples[exIndex], translation: newValue }
+        } else if (field === 'usage_note') {
+          updatedExamples[exIndex] = { ...updatedExamples[exIndex], usage_note: newValue }
+        }
+
+        updatedItem.metadata = {
+          ...formData.metadata,
+          examples: updatedExamples
+        }
+      } else if (fieldKey.startsWith('mistake_')) {
+        const parts = fieldKey.split('_')
+        const mistakeIndex = parseInt(parts[1])
+        const field = parts.slice(2).join('_')
+
+        if (field === 'incorrect') {
+          updatedMistakes[mistakeIndex] = { ...updatedMistakes[mistakeIndex], incorrect: newValue }
+        } else if (field === 'correct') {
+          updatedMistakes[mistakeIndex] = { ...updatedMistakes[mistakeIndex], correct: newValue }
+        } else if (field === 'explanation') {
+          updatedMistakes[mistakeIndex] = {
+            ...updatedMistakes[mistakeIndex],
+            explanation: newValue
+          }
+        }
+
+        updatedItem.metadata = {
+          ...formData.metadata,
+          commonMistakes: updatedMistakes
+        }
       }
 
-      const updatedItem = {
+      const finalItem = {
         ...currentItem,
-        [fieldKey === 'title' ? 'title' : 'metadata']:
-          fieldKey === 'title' ? newValue : updatedMetadata,
+        ...updatedItem,
         updated_at: new Date().toISOString()
       }
 
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
-        setCurrentItem(updatedItem as grammar_item)
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateGrammarItem(finalItem as grammar_item)
+        setCurrentItem(finalItem as grammar_item)
+        setFormData((prev) => ({
+          ...prev,
+          ...updatedItem,
+          definitions: updatedDefinitions,
+          examples: updatedExamples,
+          commonMistakes: updatedMistakes
+        }))
+        setInitialData({
+          definitions: updatedDefinitions,
+          examples: updatedExamples,
+          commonMistakes: updatedMistakes
+        })
+      } else {
+        throw new Error('Database not connected')
       }
     } catch (error) {
-      console.error('[GrammarContentSection] Error updating field:', error)
-      alert(`Lỗi khi lưu: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('[GrammarContentSection] Error saving field:', error)
+      throw error
     }
-
-    setEditingFields((prev) => {
-      const newState = { ...prev }
-      delete newState[fieldKey]
-      return newState
-    })
   }
 
-  const handleItemTypeChange = async (value: string | string[]) => {
+  const handleItemTypeChange = (value: string | string[]) => {
     const newValue = (typeof value === 'string' ? value : value[0]) as any
     setFormData((prev) => ({
       ...prev,
       item_type: newValue
     }))
+  }
 
+  const handleSaveItemType = async (value: string | string[]) => {
+    const newValue = (typeof value === 'string' ? value : value[0]) as any
     try {
       const updatedItem = {
         ...currentItem,
         item_type: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateGrammarItem(updatedItem as grammar_item)
         setCurrentItem(updatedItem as grammar_item)
       }
     } catch (error) {
@@ -328,21 +302,28 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
     }
   }
 
-  const handleDifficultyChange = async (value: string | string[]) => {
+  const handleDifficultyChange = (value: string | string[]) => {
     const newValue = parseInt(typeof value === 'string' ? value : value[0])
     setFormData((prev) => ({
       ...prev,
       difficulty_level: newValue
     }))
+  }
 
+  const handleSaveDifficulty = async (value: string | string[]) => {
+    const newValue = parseInt(typeof value === 'string' ? value : value[0])
     try {
       const updatedItem = {
         ...currentItem,
         difficulty_level: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateGrammarItem(updatedItem as grammar_item)
         setCurrentItem(updatedItem as grammar_item)
       }
     } catch (error) {
@@ -350,21 +331,28 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
     }
   }
 
-  const handleFrequencyChange = async (value: string | string[]) => {
+  const handleFrequencyChange = (value: string | string[]) => {
     const newValue = parseInt(typeof value === 'string' ? value : value[0])
     setFormData((prev) => ({
       ...prev,
       frequency_rank: newValue
     }))
+  }
 
+  const handleSaveFrequency = async (value: string | string[]) => {
+    const newValue = parseInt(typeof value === 'string' ? value : value[0])
     try {
       const updatedItem = {
         ...currentItem,
         frequency_rank: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateGrammarItem(updatedItem as grammar_item)
         setCurrentItem(updatedItem as grammar_item)
       }
     } catch (error) {
@@ -372,21 +360,28 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
     }
   }
 
-  const handleCategoryChange = async (value: string | string[]) => {
+  const handleCategoryChange = (value: string | string[]) => {
     const newValue = typeof value === 'string' ? value : value[0]
     setFormData((prev) => ({
       ...prev,
       category: newValue
     }))
+  }
 
+  const handleSaveCategory = async (value: string | string[]) => {
+    const newValue = typeof value === 'string' ? value : value[0]
     try {
       const updatedItem = {
         ...currentItem,
         category: newValue,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateGrammarItem(updatedItem as grammar_item)
         setCurrentItem(updatedItem as grammar_item)
       }
     } catch (error) {
@@ -403,8 +398,12 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
         tags: newTags,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateGrammarItem(updatedItem as grammar_item)
         setCurrentItem(updatedItem as grammar_item)
       }
     } catch (error) {
@@ -421,8 +420,12 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
         metadata: newMetadata,
         updated_at: new Date().toISOString()
       }
-      if (window.api?.vocabulary?.update) {
-        await window.api.vocabulary.update(updatedItem)
+
+      const { getCloudDatabase } = await import('../../../../../../services/CloudDatabaseService')
+      const db = getCloudDatabase()
+
+      if (db) {
+        await db.updateGrammarItem(updatedItem as grammar_item)
         setCurrentItem(updatedItem as grammar_item)
       }
     } catch (error) {
@@ -436,7 +439,7 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
       definitions: [
         ...prev.definitions,
         {
-          id: `def_${Date.now()}`,
+          id: `def_${Date.now()}_${prev.definitions.length}`,
           description: '',
           explanation: '',
           structure: '',
@@ -456,13 +459,25 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
   }
 
   const addExample = () => {
+    const isFirstExample = formData.examples.length === 0
+
     setFormData((prev) => ({
       ...prev,
       examples: [
         ...prev.examples,
-        { id: `ex_${Date.now()}`, sentence: '', translation: '', usage_note: '' }
+        {
+          id: `ex_${Date.now()}_${prev.examples.length}`,
+          sentence: '',
+          translation: '',
+          usage_note: ''
+        }
       ]
     }))
+
+    // Move to new example if first one
+    if (isFirstExample) {
+      setExampleSlideIndex(formData.examples.length)
+    }
   }
 
   const removeExample = (index: number) => {
@@ -471,17 +486,34 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
         ...prev,
         examples: prev.examples.filter((_, i) => i !== index)
       }))
+
+      // Adjust slide index if needed
+      if (exampleSlideIndex >= index && exampleSlideIndex > 0) {
+        setExampleSlideIndex(exampleSlideIndex - 1)
+      }
     }
   }
 
   const addMistake = () => {
+    const isFirstMistake = formData.commonMistakes.length === 0
+
     setFormData((prev) => ({
       ...prev,
       commonMistakes: [
         ...prev.commonMistakes,
-        { id: `mistake_${Date.now()}`, incorrect: '', correct: '', explanation: '' }
+        {
+          id: `mistake_${Date.now()}_${prev.commonMistakes.length}`,
+          incorrect: '',
+          correct: '',
+          explanation: ''
+        }
       ]
     }))
+
+    // Move to new mistake if first one
+    if (isFirstMistake) {
+      setMistakeSlideIndex(formData.commonMistakes.length)
+    }
   }
 
   const removeMistake = (index: number) => {
@@ -490,649 +522,786 @@ const GrammarContentSection = ({ item, onDelete }: GrammarContentSectionProps) =
         ...prev,
         commonMistakes: prev.commonMistakes.filter((_, i) => i !== index)
       }))
+
+      // Adjust slide index if needed
+      if (mistakeSlideIndex >= index && mistakeSlideIndex > 0) {
+        setMistakeSlideIndex(mistakeSlideIndex - 1)
+      }
     }
   }
 
-  const getDisplayValue = (fieldKey: string): string => {
-    if (editingFields[fieldKey]?.isEditing) {
-      return editingFields[fieldKey].pendingValue
-    }
-
-    if (fieldKey === 'title') return formData.title
-
-    if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'description') return formData.definitions[defIndex]?.description || ''
-      if (field === 'explanation') return formData.definitions[defIndex]?.explanation || ''
-      if (field === 'structure') return formData.definitions[defIndex]?.structure || ''
-      if (field === 'translation') return formData.definitions[defIndex]?.translation || ''
-    }
-
-    if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const exIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'sentence') return formData.examples[exIndex]?.sentence || ''
-      if (field === 'translation') return formData.examples[exIndex]?.translation || ''
-      if (field === 'usage_note') return formData.examples[exIndex]?.usage_note || ''
-    }
-
-    if (fieldKey.startsWith('mistake_')) {
-      const parts = fieldKey.split('_')
-      const mistakeIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-
-      if (field === 'incorrect') return formData.commonMistakes[mistakeIndex]?.incorrect || ''
-      if (field === 'correct') return formData.commonMistakes[mistakeIndex]?.correct || ''
-      if (field === 'explanation') return formData.commonMistakes[mistakeIndex]?.explanation || ''
-    }
-
-    return ''
+  const goToExampleSlide = (slideIndex: number) => {
+    setExampleSlideIndex(slideIndex)
   }
 
-  const hasFieldChanged = (fieldKey: string): boolean => {
-    if (!editingFields[fieldKey]?.isEditing) return false
-
-    const pendingValue = editingFields[fieldKey].pendingValue
-    let initialValue = ''
-
-    if (fieldKey === 'title') {
-      initialValue = currentItem.title
-    } else if (fieldKey.startsWith('def_')) {
-      const parts = fieldKey.split('_')
-      const defIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-      const initialDef = getInitialDefinitions()[defIndex]
-
-      if (field === 'description') {
-        initialValue = initialDef?.description || ''
-      } else if (field === 'explanation') {
-        initialValue = initialDef?.explanation || ''
-      } else if (field === 'structure') {
-        initialValue = initialDef?.structure || ''
-      } else if (field === 'translation') {
-        initialValue = initialDef?.translation || ''
-      }
-    } else if (fieldKey.startsWith('ex_')) {
-      const parts = fieldKey.split('_')
-      const exIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-      const initialEx = getInitialExamples()[exIndex]
-
-      if (field === 'sentence') {
-        initialValue = initialEx?.sentence || ''
-      } else if (field === 'translation') {
-        initialValue = initialEx?.translation || ''
-      } else if (field === 'usage_note') {
-        initialValue = initialEx?.usage_note || ''
-      }
-    } else if (fieldKey.startsWith('mistake_')) {
-      const parts = fieldKey.split('_')
-      const mistakeIndex = parseInt(parts[1])
-      const field = parts.slice(2).join('_')
-      const initialMistake = getInitialCommonMistakes()[mistakeIndex]
-
-      if (field === 'incorrect') {
-        initialValue = initialMistake?.incorrect || ''
-      } else if (field === 'correct') {
-        initialValue = initialMistake?.correct || ''
-      } else if (field === 'explanation') {
-        initialValue = initialMistake?.explanation || ''
-      }
+  const goToNextExample = () => {
+    if (exampleSlideIndex < formData.examples.length - 1) {
+      setExampleSlideIndex(exampleSlideIndex + 1)
     }
-
-    return pendingValue !== initialValue
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-text-primary">Grammar Details</h2>
-        <button
-          onClick={handleDelete}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors border border-red-500/30"
-          title="Delete this grammar point"
-        >
-          <Trash2 className="w-4 h-4" />
-          Delete
-        </button>
+  const goToPrevExample = () => {
+    if (exampleSlideIndex > 0) {
+      setExampleSlideIndex(exampleSlideIndex - 1)
+    }
+  }
+
+  const goToMistakeSlide = (slideIndex: number) => {
+    setMistakeSlideIndex(slideIndex)
+  }
+
+  const goToNextMistake = () => {
+    if (mistakeSlideIndex < formData.commonMistakes.length - 1) {
+      setMistakeSlideIndex(mistakeSlideIndex + 1)
+    }
+  }
+
+  const goToPrevMistake = () => {
+    if (mistakeSlideIndex > 0) {
+      setMistakeSlideIndex(mistakeSlideIndex - 1)
+    }
+  }
+
+  const startCreateExample = () => {
+    setCreatingExample(true)
+    setNewExampleData({ sentence: '', translation: '', usage_note: '' })
+  }
+
+  const cancelCreateExample = () => {
+    setCreatingExample(false)
+    setNewExampleData({ sentence: '', translation: '', usage_note: '' })
+  }
+
+  const confirmCreateExample = () => {
+    if (!newExampleData.sentence.trim()) {
+      alert('Please enter example sentence')
+      return
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      examples: [
+        ...prev.examples,
+        {
+          id: `ex_${Date.now()}_${prev.examples.length}`,
+          sentence: newExampleData.sentence,
+          translation: newExampleData.translation,
+          usage_note: newExampleData.usage_note
+        }
+      ]
+    }))
+
+    // Move to new example
+    setExampleSlideIndex(formData.examples.length)
+
+    // Reset form
+    setCreatingExample(false)
+    setNewExampleData({ sentence: '', translation: '', usage_note: '' })
+  }
+
+  const startCreateMistake = () => {
+    setCreatingMistake(true)
+    setNewMistakeData({ incorrect: '', correct: '', explanation: '' })
+  }
+
+  const cancelCreateMistake = () => {
+    setCreatingMistake(false)
+    setNewMistakeData({ incorrect: '', correct: '', explanation: '' })
+  }
+
+  const confirmCreateMistake = () => {
+    if (!newMistakeData.incorrect.trim() || !newMistakeData.correct.trim()) {
+      alert('Please enter both incorrect and correct examples')
+      return
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      commonMistakes: [
+        ...prev.commonMistakes,
+        {
+          id: `mistake_${Date.now()}_${prev.commonMistakes.length}`,
+          incorrect: newMistakeData.incorrect,
+          correct: newMistakeData.correct,
+          explanation: newMistakeData.explanation
+        }
+      ]
+    }))
+
+    // Move to new mistake
+    setMistakeSlideIndex(formData.commonMistakes.length)
+
+    // Reset form
+    setCreatingMistake(false)
+    setNewMistakeData({ incorrect: '', correct: '', explanation: '' })
+  }
+
+  const renderInformationTab = () => (
+    <div className="p-6 space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CustomInput
+          label="Title"
+          value={formData.title}
+          onChange={(val) => setFormData((prev) => ({ ...prev, title: val }))}
+          variant="default"
+          size="sm"
+          trackChanges={true}
+          initialValue={currentItem.title}
+          onSave={async (val) => await handleSaveField('title', val)}
+        />
+
+        <CustomCombobox
+          label="Item Type"
+          value={formData.item_type}
+          options={GRAMMAR_ITEM_TYPES}
+          onChange={handleItemTypeChange}
+          onSave={handleSaveItemType}
+          size="sm"
+        />
+
+        <CustomCombobox
+          label="Difficulty"
+          value={formData.difficulty_level > 0 ? formData.difficulty_level.toString() : ''}
+          options={[
+            { value: '1', label: 'Level 1 - Very Easy' },
+            { value: '2', label: 'Level 2 - Easy' },
+            { value: '3', label: 'Level 3' },
+            { value: '4', label: 'Level 4' },
+            { value: '5', label: 'Level 5 - Medium' },
+            { value: '6', label: 'Level 6' },
+            { value: '7', label: 'Level 7' },
+            { value: '8', label: 'Level 8' },
+            { value: '9', label: 'Level 9' },
+            { value: '10', label: 'Level 10 - Very Hard' }
+          ]}
+          onChange={handleDifficultyChange}
+          onSave={handleSaveDifficulty}
+          size="sm"
+        />
+
+        <CustomCombobox
+          label="Frequency"
+          value={formData.frequency_rank > 0 ? formData.frequency_rank.toString() : ''}
+          options={[
+            { value: '1', label: 'Rank 1 - Very Rare' },
+            { value: '2', label: 'Rank 2' },
+            { value: '3', label: 'Rank 3' },
+            { value: '4', label: 'Rank 4' },
+            { value: '5', label: 'Rank 5 - Medium' },
+            { value: '6', label: 'Rank 6' },
+            { value: '7', label: 'Rank 7' },
+            { value: '8', label: 'Rank 8' },
+            { value: '9', label: 'Rank 9' },
+            { value: '10', label: 'Rank 10 - Very Common' }
+          ]}
+          onChange={handleFrequencyChange}
+          onSave={handleSaveFrequency}
+          size="sm"
+        />
+
+        <CustomCombobox
+          label="Category"
+          value={formData.category}
+          options={[
+            { value: 'tenses', label: 'Tenses' },
+            { value: 'conditionals', label: 'Conditionals' },
+            { value: 'passive', label: 'Passive Voice' },
+            { value: 'reported_speech', label: 'Reported Speech' },
+            { value: 'modals', label: 'Modal Verbs' }
+          ]}
+          onChange={handleCategoryChange}
+          creatable={true}
+          onSave={handleSaveCategory}
+          size="sm"
+        />
       </div>
 
-      <section>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative">
-            <CustomInput
-              label="Title"
-              value={getDisplayValue('title')}
-              onChange={(val) => handleFieldChange('title', val)}
-              onFocus={() => {
-                if (!editingFields['title']?.isEditing) {
-                  startEditField('title')
-                }
-              }}
-              variant="default"
-              size="sm"
-            />
-            {editingFields['title']?.isEditing && hasFieldChanged('title') && (
-              <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                <button
-                  onClick={() => confirmFieldChange('title')}
-                  className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                  title="Confirm change"
-                >
-                  <Check className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Tags
+        </label>
+        <CustomTag
+          tags={formData.tags}
+          onTagsChange={handleTagsChange}
+          placeholder="Add tag..."
+          allowDuplicates={false}
+          size="sm"
+        />
+      </div>
+    </div>
+  )
 
-          <CustomCombobox
-            label="Item Type"
-            value={formData.item_type}
-            options={GRAMMAR_ITEM_TYPES}
-            onChange={handleItemTypeChange}
-            size="sm"
-          />
-
-          <CustomCombobox
-            label="Difficulty"
-            value={formData.difficulty_level > 0 ? formData.difficulty_level.toString() : ''}
-            options={[
-              { value: '1', label: 'Level 1 - Very Easy' },
-              { value: '2', label: 'Level 2 - Easy' },
-              { value: '3', label: 'Level 3' },
-              { value: '4', label: 'Level 4' },
-              { value: '5', label: 'Level 5 - Medium' },
-              { value: '6', label: 'Level 6' },
-              { value: '7', label: 'Level 7' },
-              { value: '8', label: 'Level 8' },
-              { value: '9', label: 'Level 9' },
-              { value: '10', label: 'Level 10 - Very Hard' }
-            ]}
-            onChange={handleDifficultyChange}
-            size="sm"
-          />
-
-          <CustomCombobox
-            label="Frequency"
-            value={formData.frequency_rank > 0 ? formData.frequency_rank.toString() : ''}
-            options={[
-              { value: '1', label: 'Rank 1 - Very Rare' },
-              { value: '2', label: 'Rank 2' },
-              { value: '3', label: 'Rank 3' },
-              { value: '4', label: 'Rank 4' },
-              { value: '5', label: 'Rank 5 - Medium' },
-              { value: '6', label: 'Rank 6' },
-              { value: '7', label: 'Rank 7' },
-              { value: '8', label: 'Rank 8' },
-              { value: '9', label: 'Rank 9' },
-              { value: '10', label: 'Rank 10 - Very Common' }
-            ]}
-            onChange={handleFrequencyChange}
-            size="sm"
-          />
-
-          <CustomCombobox
-            label="Category"
-            value={formData.category}
-            options={[
-              { value: 'tenses', label: 'Tenses' },
-              { value: 'conditionals', label: 'Conditionals' },
-              { value: 'passive', label: 'Passive Voice' },
-              { value: 'reported_speech', label: 'Reported Speech' },
-              { value: 'modals', label: 'Modal Verbs' }
-            ]}
-            onChange={handleCategoryChange}
-            creatable={true}
-            size="sm"
-          />
-        </div>
-
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Tags
-          </label>
-          <CustomTag
-            tags={formData.tags}
-            onTagsChange={handleTagsChange}
-            placeholder="Add tag..."
-            allowDuplicates={false}
-          />
-        </div>
-      </section>
-
+  const renderDefinitionsTab = () => (
+    <div className="p-6 space-y-6">
       {/* Definitions Section */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setDefinitionsExpanded(!definitionsExpanded)}
-            className="flex items-center gap-2 text-lg font-semibold text-text-primary hover:text-primary transition-colors"
-          >
-            {definitionsExpanded ? (
-              <ChevronDown className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
-            Definitions
-          </button>
-          {definitionsExpanded && (
-            <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addDefinition}>
-              Add definition
-            </CustomButton>
-          )}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-text-primary">Definitions</h3>
+          <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addDefinition}>
+            Add definition
+          </CustomButton>
         </div>
 
-        {definitionsExpanded && (
-          <div className="space-y-4">
-            {formData.definitions.map((def: Definition, defIndex: number) => (
-              <div key={def.id} className="p-4 border border-border-default rounded-lg space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-text-secondary">
-                    Definition {defIndex + 1}
-                  </span>
-                  {formData.definitions.length > 1 && (
-                    <button
-                      onClick={() => removeDefinition(defIndex)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="relative">
-                    <CustomInput
-                      label="Description"
-                      value={getDisplayValue(`def_${defIndex}_description`)}
-                      onChange={(val) => handleFieldChange(`def_${defIndex}_description`, val)}
-                      onFocus={() => {
-                        if (!editingFields[`def_${defIndex}_description`]?.isEditing) {
-                          startEditField(`def_${defIndex}_description`)
-                        }
-                      }}
-                      variant="default"
-                      placeholder="Brief description"
-                      size="sm"
-                    />
-                    {editingFields[`def_${defIndex}_description`]?.isEditing &&
-                      hasFieldChanged(`def_${defIndex}_description`) && (
-                        <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                          <button
-                            onClick={() => confirmFieldChange(`def_${defIndex}_description`)}
-                            className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                            title="Save description"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="relative">
-                    <CustomInput
-                      label="Explanation"
-                      value={getDisplayValue(`def_${defIndex}_explanation`)}
-                      onChange={(val) => handleFieldChange(`def_${defIndex}_explanation`, val)}
-                      onFocus={() => {
-                        if (!editingFields[`def_${defIndex}_explanation`]?.isEditing) {
-                          startEditField(`def_${defIndex}_explanation`)
-                        }
-                      }}
-                      variant="default"
-                      placeholder="Detailed explanation"
-                      size="sm"
-                    />
-                    {editingFields[`def_${defIndex}_explanation`]?.isEditing &&
-                      hasFieldChanged(`def_${defIndex}_explanation`) && (
-                        <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                          <button
-                            onClick={() => confirmFieldChange(`def_${defIndex}_explanation`)}
-                            className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                            title="Save explanation"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="relative">
-                    <CustomInput
-                      label="Structure"
-                      value={getDisplayValue(`def_${defIndex}_structure`)}
-                      onChange={(val) => handleFieldChange(`def_${defIndex}_structure`, val)}
-                      onFocus={() => {
-                        if (!editingFields[`def_${defIndex}_structure`]?.isEditing) {
-                          startEditField(`def_${defIndex}_structure`)
-                        }
-                      }}
-                      variant="default"
-                      placeholder="Grammar structure or formula"
-                      size="sm"
-                    />
-                    {editingFields[`def_${defIndex}_structure`]?.isEditing &&
-                      hasFieldChanged(`def_${defIndex}_structure`) && (
-                        <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                          <button
-                            onClick={() => confirmFieldChange(`def_${defIndex}_structure`)}
-                            className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                            title="Save structure"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="relative">
-                    <CustomInput
-                      label="Translation"
-                      value={getDisplayValue(`def_${defIndex}_translation`)}
-                      onChange={(val) => handleFieldChange(`def_${defIndex}_translation`, val)}
-                      onFocus={() => {
-                        if (!editingFields[`def_${defIndex}_translation`]?.isEditing) {
-                          startEditField(`def_${defIndex}_translation`)
-                        }
-                      }}
-                      variant="default"
-                      placeholder="Vietnamese translation"
-                      size="sm"
-                    />
-                    {editingFields[`def_${defIndex}_translation`]?.isEditing &&
-                      hasFieldChanged(`def_${defIndex}_translation`) && (
-                        <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                          <button
-                            onClick={() => confirmFieldChange(`def_${defIndex}_translation`)}
-                            className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                            title="Save translation"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
-                  </div>
-                </div>
+        <div className="space-y-4">
+          {formData.definitions.map((def: Definition, defIndex: number) => (
+            <div key={def.id} className="p-4 border border-border-default rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-text-secondary">
+                  Definition {defIndex + 1}
+                </span>
+                {formData.definitions.length > 1 && (
+                  <button
+                    onClick={() => removeDefinition(defIndex)}
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+
+              <div className="grid grid-cols-1 gap-3">
+                <CustomInput
+                  label="Description"
+                  value={def.description}
+                  onChange={(val) => {
+                    const newDefs = [...formData.definitions]
+                    newDefs[defIndex] = { ...newDefs[defIndex], description: val }
+                    setFormData((prev) => ({ ...prev, definitions: newDefs }))
+                  }}
+                  variant="default"
+                  placeholder="Brief description"
+                  size="sm"
+                  multiline={true}
+                  minRows={1}
+                  maxRows={10}
+                  autoResize={true}
+                  trackChanges={true}
+                  initialValue={initialData.definitions[defIndex]?.description || ''}
+                  onSave={async (val) => await handleSaveField(`def_${defIndex}_description`, val)}
+                />
+
+                <CustomInput
+                  label="Explanation"
+                  value={def.explanation}
+                  onChange={(val) => {
+                    const newDefs = [...formData.definitions]
+                    newDefs[defIndex] = { ...newDefs[defIndex], explanation: val }
+                    setFormData((prev) => ({ ...prev, definitions: newDefs }))
+                  }}
+                  variant="default"
+                  placeholder="Detailed explanation"
+                  size="sm"
+                  multiline={true}
+                  minRows={1}
+                  maxRows={10}
+                  autoResize={true}
+                  trackChanges={true}
+                  initialValue={initialData.definitions[defIndex]?.explanation || ''}
+                  onSave={async (val) => await handleSaveField(`def_${defIndex}_explanation`, val)}
+                />
+
+                <CustomInput
+                  label="Structure"
+                  value={def.structure || ''}
+                  onChange={(val) => {
+                    const newDefs = [...formData.definitions]
+                    newDefs[defIndex] = { ...newDefs[defIndex], structure: val }
+                    setFormData((prev) => ({ ...prev, definitions: newDefs }))
+                  }}
+                  variant="default"
+                  placeholder="Grammar structure or formula"
+                  size="sm"
+                  trackChanges={true}
+                  initialValue={initialData.definitions[defIndex]?.structure || ''}
+                  onSave={async (val) => await handleSaveField(`def_${defIndex}_structure`, val)}
+                />
+
+                <CustomInput
+                  label="Translation"
+                  value={def.translation || ''}
+                  onChange={(val) => {
+                    const newDefs = [...formData.definitions]
+                    newDefs[defIndex] = { ...newDefs[defIndex], translation: val }
+                    setFormData((prev) => ({ ...prev, definitions: newDefs }))
+                  }}
+                  variant="default"
+                  placeholder="Vietnamese translation"
+                  size="sm"
+                  multiline={true}
+                  minRows={1}
+                  maxRows={10}
+                  autoResize={true}
+                  trackChanges={true}
+                  initialValue={initialData.definitions[defIndex]?.translation || ''}
+                  onSave={async (val) => await handleSaveField(`def_${defIndex}_translation`, val)}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Examples Section */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setExamplesExpanded(!examplesExpanded)}
-            className="flex items-center gap-2 text-lg font-semibold text-text-primary hover:text-primary transition-colors"
-          >
-            {examplesExpanded ? (
-              <ChevronDown className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
-            Examples
-          </button>
-          {examplesExpanded && (
-            <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addExample}>
-              Add example
-            </CustomButton>
-          )}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-text-primary">Examples</h3>
+          <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addExample}>
+            Add example
+          </CustomButton>
         </div>
 
-        {examplesExpanded && (
-          <div className="space-y-2">
-            {formData.examples.map((example: Example, exIndex: number) => (
-              <div key={example.id} className="p-3 bg-card-background rounded space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-secondary">Example {exIndex + 1}</span>
-                  {formData.examples.length > 1 && (
-                    <button
-                      onClick={() => removeExample(exIndex)}
-                      className="text-red-400 hover:text-red-500"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                <div className="relative">
+        {formData.examples.length > 0 ? (
+          <div className="space-y-4">
+            {/* Example Slider */}
+            <div className="relative p-4 border border-border-default rounded-lg">
+              <div className="transition-all duration-200">
+                <div className="space-y-4">
                   <CustomInput
                     label="Example sentence"
-                    value={getDisplayValue(`ex_${exIndex}_sentence`)}
-                    onChange={(val) => handleFieldChange(`ex_${exIndex}_sentence`, val)}
-                    onFocus={() => {
-                      if (!editingFields[`ex_${exIndex}_sentence`]?.isEditing) {
-                        startEditField(`ex_${exIndex}_sentence`)
+                    value={formData.examples[exampleSlideIndex]?.sentence || ''}
+                    onChange={(val) => {
+                      const newExamples = [...formData.examples]
+                      newExamples[exampleSlideIndex] = {
+                        ...newExamples[exampleSlideIndex],
+                        sentence: val
                       }
+                      setFormData((prev) => ({ ...prev, examples: newExamples }))
                     }}
                     variant="default"
                     placeholder="Example sentence"
                     size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                    trackChanges={true}
+                    initialValue={initialData.examples[exampleSlideIndex]?.sentence || ''}
+                    onSave={async (val) =>
+                      await handleSaveField(`ex_${exampleSlideIndex}_sentence`, val)
+                    }
                   />
-                  {editingFields[`ex_${exIndex}_sentence`]?.isEditing &&
-                    hasFieldChanged(`ex_${exIndex}_sentence`) && (
-                      <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                        <button
-                          onClick={() => confirmFieldChange(`ex_${exIndex}_sentence`)}
-                          className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                          title="Save sentence"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                </div>
 
-                <div className="relative">
                   <CustomInput
                     label="Translate (example)"
-                    value={getDisplayValue(`ex_${exIndex}_translation`)}
-                    onChange={(val) => handleFieldChange(`ex_${exIndex}_translation`, val)}
-                    onFocus={() => {
-                      if (!editingFields[`ex_${exIndex}_translation`]?.isEditing) {
-                        startEditField(`ex_${exIndex}_translation`)
+                    value={formData.examples[exampleSlideIndex]?.translation || ''}
+                    onChange={(val) => {
+                      const newExamples = [...formData.examples]
+                      newExamples[exampleSlideIndex] = {
+                        ...newExamples[exampleSlideIndex],
+                        translation: val
                       }
+                      setFormData((prev) => ({ ...prev, examples: newExamples }))
                     }}
                     variant="default"
                     placeholder="Translation"
                     size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                    trackChanges={true}
+                    initialValue={initialData.examples[exampleSlideIndex]?.translation || ''}
+                    onSave={async (val) =>
+                      await handleSaveField(`ex_${exampleSlideIndex}_translation`, val)
+                    }
                   />
-                  {editingFields[`ex_${exIndex}_translation`]?.isEditing &&
-                    hasFieldChanged(`ex_${exIndex}_translation`) && (
-                      <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                        <button
-                          onClick={() => confirmFieldChange(`ex_${exIndex}_translation`)}
-                          className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                          title="Save translation"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                </div>
 
-                <div className="relative">
                   <CustomInput
                     label="Usage note"
-                    value={getDisplayValue(`ex_${exIndex}_usage_note`)}
-                    onChange={(val) => handleFieldChange(`ex_${exIndex}_usage_note`, val)}
-                    onFocus={() => {
-                      if (!editingFields[`ex_${exIndex}_usage_note`]?.isEditing) {
-                        startEditField(`ex_${exIndex}_usage_note`)
+                    value={formData.examples[exampleSlideIndex]?.usage_note || ''}
+                    onChange={(val) => {
+                      const newExamples = [...formData.examples]
+                      newExamples[exampleSlideIndex] = {
+                        ...newExamples[exampleSlideIndex],
+                        usage_note: val
                       }
+                      setFormData((prev) => ({ ...prev, examples: newExamples }))
                     }}
                     variant="default"
                     placeholder="Usage note"
                     size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                    trackChanges={true}
+                    initialValue={initialData.examples[exampleSlideIndex]?.usage_note || ''}
+                    onSave={async (val) =>
+                      await handleSaveField(`ex_${exampleSlideIndex}_usage_note`, val)
+                    }
                   />
-                  {editingFields[`ex_${exIndex}_usage_note`]?.isEditing &&
-                    hasFieldChanged(`ex_${exIndex}_usage_note`) && (
-                      <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                        <button
-                          onClick={() => confirmFieldChange(`ex_${exIndex}_usage_note`)}
-                          className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                          title="Save usage note"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
 
-      {/* Common Mistakes Section */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => setMistakesExpanded(!mistakesExpanded)}
-            className="flex items-center gap-2 text-lg font-semibold text-text-primary hover:text-primary transition-colors"
-          >
-            {mistakesExpanded ? (
-              <ChevronDown className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
-            Common Mistakes
-          </button>
-          {mistakesExpanded && (
-            <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addMistake}>
-              Add mistake
-            </CustomButton>
-          )}
-        </div>
-
-        {mistakesExpanded && (
-          <div className="space-y-2">
-            {formData.commonMistakes.map((mistake: CommonMistake, mistakeIndex: number) => (
-              <div key={mistake.id} className="p-3 bg-card-background rounded space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-secondary">Mistake {mistakeIndex + 1}</span>
-                  {formData.commonMistakes.length > 1 && (
+              {/* Pagination + Action Buttons */}
+              <div className="flex items-center justify-between mt-4">
+                {/* Left: Pagination */}
+                {formData.examples.length > 1 ? (
+                  <div className="flex items-center gap-3">
                     <button
-                      onClick={() => removeMistake(mistakeIndex)}
-                      className="text-red-400 hover:text-red-500"
+                      onClick={goToPrevExample}
+                      disabled={exampleSlideIndex === 0}
+                      className="p-2 rounded-lg bg-card-background border border-border-default hover:border-primary/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                      title="Previous example"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    <span className="text-sm font-medium text-text-primary">
+                      {exampleSlideIndex + 1} / {formData.examples.length}
+                    </span>
+
+                    <button
+                      onClick={goToNextExample}
+                      disabled={exampleSlideIndex === formData.examples.length - 1}
+                      className="p-2 rounded-lg bg-card-background border border-border-default hover:border-primary/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                      title="Next example"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div></div>
+                )}
+
+                {/* Right: Action Buttons */}
+                <div className="flex items-center gap-2">
+                  {formData.examples.length > 1 && (
+                    <button
+                      onClick={() => removeExample(exampleSlideIndex)}
+                      className="p-2 rounded-lg text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                      title="Remove example"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   )}
+                  <CustomButton
+                    variant="ghost"
+                    size="sm"
+                    icon={Plus}
+                    onClick={startCreateExample}
+                    children={undefined}
+                  ></CustomButton>
                 </div>
+              </div>
+            </div>
 
-                <div className="relative">
+            {/* Create Example Form */}
+            {creatingExample && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 bg-background/50 border border-border-default rounded-lg"
+              >
+                <h4 className="text-sm font-semibold text-text-primary mb-4">Create Example</h4>
+                <div className="space-y-3">
+                  <CustomInput
+                    label="Example sentence"
+                    value={newExampleData.sentence}
+                    onChange={(val) => setNewExampleData((prev) => ({ ...prev, sentence: val }))}
+                    variant="default"
+                    placeholder="Enter example sentence"
+                    size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                  />
+                  <CustomInput
+                    label="Translate (example)"
+                    value={newExampleData.translation}
+                    onChange={(val) => setNewExampleData((prev) => ({ ...prev, translation: val }))}
+                    variant="default"
+                    placeholder="Enter translation"
+                    size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                  />
+                  <CustomInput
+                    label="Usage note"
+                    value={newExampleData.usage_note}
+                    onChange={(val) => setNewExampleData((prev) => ({ ...prev, usage_note: val }))}
+                    variant="default"
+                    placeholder="Enter usage note"
+                    size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <div className="w-auto">
+                      <CustomButton variant="ghost" size="sm" onClick={cancelCreateExample}>
+                        Cancel
+                      </CustomButton>
+                    </div>
+                    <div className="w-auto">
+                      <CustomButton variant="primary" size="sm" onClick={confirmCreateExample}>
+                        Create
+                      </CustomButton>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        ) : (
+          <div className="p-8 text-center text-text-secondary">
+            <p className="mb-4">No examples yet</p>
+            <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addExample}>
+              Add first example
+            </CustomButton>
+          </div>
+        )}
+      </div>
+
+      {/* Common Mistakes Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-text-primary">Common Mistakes</h3>
+          <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addMistake}>
+            Add mistake
+          </CustomButton>
+        </div>
+
+        {formData.commonMistakes.length > 0 ? (
+          <div className="space-y-4">
+            {/* Mistake Slider */}
+            <div className="relative p-4 border border-border-default rounded-lg">
+              <div className="transition-all duration-200">
+                <div className="space-y-4">
                   <CustomInput
                     label="Incorrect example"
-                    value={getDisplayValue(`mistake_${mistakeIndex}_incorrect`)}
-                    onChange={(val) => handleFieldChange(`mistake_${mistakeIndex}_incorrect`, val)}
-                    onFocus={() => {
-                      if (!editingFields[`mistake_${mistakeIndex}_incorrect`]?.isEditing) {
-                        startEditField(`mistake_${mistakeIndex}_incorrect`)
+                    value={formData.commonMistakes[mistakeSlideIndex]?.incorrect || ''}
+                    onChange={(val) => {
+                      const newMistakes = [...formData.commonMistakes]
+                      newMistakes[mistakeSlideIndex] = {
+                        ...newMistakes[mistakeSlideIndex],
+                        incorrect: val
                       }
+                      setFormData((prev) => ({ ...prev, commonMistakes: newMistakes }))
                     }}
                     variant="default"
                     placeholder="Incorrect example"
                     size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                    trackChanges={true}
+                    initialValue={initialData.commonMistakes[mistakeSlideIndex]?.incorrect || ''}
+                    onSave={async (val) =>
+                      await handleSaveField(`mistake_${mistakeSlideIndex}_incorrect`, val)
+                    }
                   />
-                  {editingFields[`mistake_${mistakeIndex}_incorrect`]?.isEditing &&
-                    hasFieldChanged(`mistake_${mistakeIndex}_incorrect`) && (
-                      <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                        <button
-                          onClick={() => confirmFieldChange(`mistake_${mistakeIndex}_incorrect`)}
-                          className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                          title="Save incorrect example"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                </div>
 
-                <div className="relative">
                   <CustomInput
                     label="Correct example"
-                    value={getDisplayValue(`mistake_${mistakeIndex}_correct`)}
-                    onChange={(val) => handleFieldChange(`mistake_${mistakeIndex}_correct`, val)}
-                    onFocus={() => {
-                      if (!editingFields[`mistake_${mistakeIndex}_correct`]?.isEditing) {
-                        startEditField(`mistake_${mistakeIndex}_correct`)
+                    value={formData.commonMistakes[mistakeSlideIndex]?.correct || ''}
+                    onChange={(val) => {
+                      const newMistakes = [...formData.commonMistakes]
+                      newMistakes[mistakeSlideIndex] = {
+                        ...newMistakes[mistakeSlideIndex],
+                        correct: val
                       }
+                      setFormData((prev) => ({ ...prev, commonMistakes: newMistakes }))
                     }}
                     variant="default"
                     placeholder="Correct example"
                     size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                    trackChanges={true}
+                    initialValue={initialData.commonMistakes[mistakeSlideIndex]?.correct || ''}
+                    onSave={async (val) =>
+                      await handleSaveField(`mistake_${mistakeSlideIndex}_correct`, val)
+                    }
                   />
-                  {editingFields[`mistake_${mistakeIndex}_correct`]?.isEditing &&
-                    hasFieldChanged(`mistake_${mistakeIndex}_correct`) && (
-                      <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                        <button
-                          onClick={() => confirmFieldChange(`mistake_${mistakeIndex}_correct`)}
-                          className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                          title="Save correct example"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                </div>
 
-                <div className="relative">
                   <CustomInput
                     label="Explanation"
-                    value={getDisplayValue(`mistake_${mistakeIndex}_explanation`)}
-                    onChange={(val) =>
-                      handleFieldChange(`mistake_${mistakeIndex}_explanation`, val)
-                    }
-                    onFocus={() => {
-                      if (!editingFields[`mistake_${mistakeIndex}_explanation`]?.isEditing) {
-                        startEditField(`mistake_${mistakeIndex}_explanation`)
+                    value={formData.commonMistakes[mistakeSlideIndex]?.explanation || ''}
+                    onChange={(val) => {
+                      const newMistakes = [...formData.commonMistakes]
+                      newMistakes[mistakeSlideIndex] = {
+                        ...newMistakes[mistakeSlideIndex],
+                        explanation: val
                       }
+                      setFormData((prev) => ({ ...prev, commonMistakes: newMistakes }))
                     }}
                     variant="default"
                     placeholder="Explanation"
                     size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                    trackChanges={true}
+                    initialValue={initialData.commonMistakes[mistakeSlideIndex]?.explanation || ''}
+                    onSave={async (val) =>
+                      await handleSaveField(`mistake_${mistakeSlideIndex}_explanation`, val)
+                    }
                   />
-                  {editingFields[`mistake_${mistakeIndex}_explanation`]?.isEditing &&
-                    hasFieldChanged(`mistake_${mistakeIndex}_explanation`) && (
-                      <div className="absolute right-2 top-[32px] flex gap-1 z-10">
-                        <button
-                          onClick={() => confirmFieldChange(`mistake_${mistakeIndex}_explanation`)}
-                          className="p-1.5 rounded bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors"
-                          title="Save explanation"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
                 </div>
               </div>
-            ))}
+
+              {/* Pagination + Action Buttons */}
+              <div className="flex items-center justify-between mt-4">
+                {/* Left: Pagination */}
+                {formData.commonMistakes.length > 1 ? (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={goToPrevMistake}
+                      disabled={mistakeSlideIndex === 0}
+                      className="p-2 rounded-lg bg-card-background border border-border-default hover:border-primary/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                      title="Previous mistake"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    <span className="text-sm font-medium text-text-primary">
+                      {mistakeSlideIndex + 1} / {formData.commonMistakes.length}
+                    </span>
+
+                    <button
+                      onClick={goToNextMistake}
+                      disabled={mistakeSlideIndex === formData.commonMistakes.length - 1}
+                      className="p-2 rounded-lg bg-card-background border border-border-default hover:border-primary/50 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200"
+                      title="Next mistake"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div></div>
+                )}
+
+                {/* Right: Action Buttons */}
+                <div className="flex items-center gap-2">
+                  {formData.commonMistakes.length > 1 && (
+                    <button
+                      onClick={() => removeMistake(mistakeSlideIndex)}
+                      className="p-2 rounded-lg text-text-secondary hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                      title="Remove mistake"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <CustomButton
+                    variant="ghost"
+                    size="sm"
+                    icon={Plus}
+                    onClick={startCreateMistake}
+                    children={undefined}
+                  ></CustomButton>
+                </div>
+              </div>
+            </div>
+
+            {/* Create Mistake Form */}
+            {creatingMistake && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="p-4 bg-background/50 border border-border-default rounded-lg"
+              >
+                <h4 className="text-sm font-semibold text-text-primary mb-4">
+                  Create Common Mistake
+                </h4>
+                <div className="space-y-3">
+                  <CustomInput
+                    label="Incorrect example"
+                    value={newMistakeData.incorrect}
+                    onChange={(val) => setNewMistakeData((prev) => ({ ...prev, incorrect: val }))}
+                    variant="default"
+                    placeholder="Enter incorrect example"
+                    size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                  />
+                  <CustomInput
+                    label="Correct example"
+                    value={newMistakeData.correct}
+                    onChange={(val) => setNewMistakeData((prev) => ({ ...prev, correct: val }))}
+                    variant="default"
+                    placeholder="Enter correct example"
+                    size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                  />
+                  <CustomInput
+                    label="Explanation"
+                    value={newMistakeData.explanation}
+                    onChange={(val) => setNewMistakeData((prev) => ({ ...prev, explanation: val }))}
+                    variant="default"
+                    placeholder="Enter explanation"
+                    size="sm"
+                    multiline={true}
+                    minRows={1}
+                    maxRows={10}
+                    autoResize={true}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <div className="w-auto">
+                      <CustomButton variant="ghost" size="sm" onClick={cancelCreateMistake}>
+                        Cancel
+                      </CustomButton>
+                    </div>
+                    <div className="w-auto">
+                      <CustomButton variant="primary" size="sm" onClick={confirmCreateMistake}>
+                        Create
+                      </CustomButton>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        ) : (
+          <div className="p-8 text-center text-text-secondary">
+            <p className="mb-4">No common mistakes yet</p>
+            <CustomButton variant="secondary" size="sm" icon={Plus} onClick={addMistake}>
+              Add first mistake
+            </CustomButton>
           </div>
         )}
-      </section>
+      </div>
+    </div>
+  )
 
-      {/* Metadata Section */}
-      <section>
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Metadata</h3>
-        <Metadata
-          metadata={formData.metadata}
-          onMetadataChange={handleMetadataChange}
-          readOnly={false}
-          allowCreate={true}
-          allowDelete={true}
-          allowEdit={true}
-          size="sm"
-          collapsible={true}
-          defaultExpanded={false}
-        />
-      </section>
+  const renderMetadataTab = () => (
+    <div className="p-6">
+      <Metadata
+        metadata={formData.metadata}
+        onMetadataChange={handleMetadataChange}
+        readOnly={false}
+        allowCreate={true}
+        allowDelete={true}
+        allowEdit={true}
+        size="sm"
+        collapsible={true}
+        defaultExpanded={true}
+      />
+    </div>
+  )
+
+  return (
+    <div className="h-full">
+      {activeTab === 'information' && renderInformationTab()}
+      {activeTab === 'definitions' && renderDefinitionsTab()}
+      {activeTab === 'metadata' && renderMetadataTab()}
     </div>
   )
 }
