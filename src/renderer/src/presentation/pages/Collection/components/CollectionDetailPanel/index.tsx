@@ -1,15 +1,15 @@
 // File: CollectionDetailPanel/index.tsx
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { vocabulary_item } from '../../types/vocabulary'
-import { grammar_item } from '../../types/grammar'
+import { vocabulary_items } from '../../types/vocabulary'
+import { grammar_items } from '../../types/grammar'
 import WordContentSection from './components/WordContentSection'
 import PhraseContentSection from './components/PhraseContentSection'
 import GrammarContentSection from './components/GrammarContentSection'
 import { Info, List, Database, Trash2 } from 'lucide-react'
 
 interface CollectionDetailPanelProps {
-  selectedItem: vocabulary_item | grammar_item | null
+  selectedItem: vocabulary_items | grammar_items | null
   onItemDeleted?: (itemId: string) => void
 }
 
@@ -103,11 +103,11 @@ const CollectionDetailPanel = ({ selectedItem, onItemDeleted }: CollectionDetail
     )
   }
 
-  const isVocabularyItem = (item: vocabulary_item | grammar_item): item is vocabulary_item => {
+  const isVocabularyItem = (item: vocabulary_items | grammar_items): item is vocabulary_items => {
     return 'content' in item && !('title' in item)
   }
 
-  const isGrammarItem = (item: vocabulary_item | grammar_item): item is grammar_item => {
+  const isGrammarItem = (item: vocabulary_items | grammar_items): item is grammar_items => {
     return 'title' in item && !('content' in item)
   }
 

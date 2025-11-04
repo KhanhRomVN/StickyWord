@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
-import { grammar_item } from '../../../types/grammar'
+import { grammar_items } from '../../../types/grammar'
 import CustomInput from '../../../../../../components/common/CustomInput'
 import CustomCombobox from '../../../../../../components/common/CustomCombobox'
 import CustomTag from '../../../../../../components/common/CustomTag'
 import Metadata from '../../../../../../components/common/Metadata'
 import CustomButton from '../../../../../../components/common/CustomButton'
 import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 
 interface GrammarContentSectionProps {
-  item: grammar_item
+  item: grammar_items
   onDelete?: (itemId: string) => void
   activeTab: 'information' | 'definitions' | 'metadata'
 }
@@ -56,8 +56,8 @@ const GRAMMAR_ITEM_TYPES = [
   { value: 'pattern', label: 'Pattern' }
 ]
 
-const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSectionProps) => {
-  const [currentItem, setCurrentItem] = useState<grammar_item>(item)
+const GrammarContentSection = ({ item, activeTab }: GrammarContentSectionProps) => {
+  const [currentItem, setCurrentItem] = useState<grammar_items>(item)
   const [creatingExample, setCreatingExample] = useState(false)
   const [creatingMistake, setCreatingMistake] = useState(false)
   const [newExampleData, setNewExampleData] = useState({
@@ -178,7 +178,7 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       let updatedDefinitions = [...formData.definitions]
       let updatedExamples = [...formData.examples]
       let updatedMistakes = [...formData.commonMistakes]
-      let updatedItem: Partial<grammar_item> = {}
+      let updatedItem: Partial<grammar_items> = {}
 
       if (fieldKey === 'title') {
         updatedItem.title = newValue
@@ -250,8 +250,8 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateGrammarItem(finalItem as grammar_item)
-        setCurrentItem(finalItem as grammar_item)
+        await db.updateGrammarItem(finalItem as grammar_items)
+        setCurrentItem(finalItem as grammar_items)
         setFormData((prev) => ({
           ...prev,
           ...updatedItem,
@@ -294,8 +294,8 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateGrammarItem(updatedItem as grammar_item)
-        setCurrentItem(updatedItem as grammar_item)
+        await db.updateGrammarItem(updatedItem as grammar_items)
+        setCurrentItem(updatedItem as grammar_items)
       }
     } catch (error) {
       console.error('[GrammarContentSection] Error updating item type:', error)
@@ -323,8 +323,8 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateGrammarItem(updatedItem as grammar_item)
-        setCurrentItem(updatedItem as grammar_item)
+        await db.updateGrammarItem(updatedItem as grammar_items)
+        setCurrentItem(updatedItem as grammar_items)
       }
     } catch (error) {
       console.error('[GrammarContentSection] Error updating difficulty:', error)
@@ -352,8 +352,8 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateGrammarItem(updatedItem as grammar_item)
-        setCurrentItem(updatedItem as grammar_item)
+        await db.updateGrammarItem(updatedItem as grammar_items)
+        setCurrentItem(updatedItem as grammar_items)
       }
     } catch (error) {
       console.error('[GrammarContentSection] Error updating frequency:', error)
@@ -381,8 +381,8 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateGrammarItem(updatedItem as grammar_item)
-        setCurrentItem(updatedItem as grammar_item)
+        await db.updateGrammarItem(updatedItem as grammar_items)
+        setCurrentItem(updatedItem as grammar_items)
       }
     } catch (error) {
       console.error('[GrammarContentSection] Error updating category:', error)
@@ -403,8 +403,8 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateGrammarItem(updatedItem as grammar_item)
-        setCurrentItem(updatedItem as grammar_item)
+        await db.updateGrammarItem(updatedItem as grammar_items)
+        setCurrentItem(updatedItem as grammar_items)
       }
     } catch (error) {
       console.error('[GrammarContentSection] Error updating tags:', error)
@@ -425,8 +425,8 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateGrammarItem(updatedItem as grammar_item)
-        setCurrentItem(updatedItem as grammar_item)
+        await db.updateGrammarItem(updatedItem as grammar_items)
+        setCurrentItem(updatedItem as grammar_items)
       }
     } catch (error) {
       console.error('[GrammarContentSection] Error updating metadata:', error)
@@ -530,10 +530,6 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
     }
   }
 
-  const goToExampleSlide = (slideIndex: number) => {
-    setExampleSlideIndex(slideIndex)
-  }
-
   const goToNextExample = () => {
     if (exampleSlideIndex < formData.examples.length - 1) {
       setExampleSlideIndex(exampleSlideIndex + 1)
@@ -544,10 +540,6 @@ const GrammarContentSection = ({ item, onDelete, activeTab }: GrammarContentSect
     if (exampleSlideIndex > 0) {
       setExampleSlideIndex(exampleSlideIndex - 1)
     }
-  }
-
-  const goToMistakeSlide = (slideIndex: number) => {
-    setMistakeSlideIndex(slideIndex)
   }
 
   const goToNextMistake = () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { API } from '../../../../../../../../preload/index'
-import { vocabulary_item } from '../../../types/vocabulary'
+import { vocabulary_items } from '../../../types/vocabulary'
 import CustomInput from '../../../../../../components/common/CustomInput'
 import CustomCombobox from '../../../../../../components/common/CustomCombobox'
 import CustomTag from '../../../../../../components/common/CustomTag'
@@ -16,16 +16,30 @@ declare global {
 }
 
 interface WordContentSectionProps {
-  item: vocabulary_item
+  item: vocabulary_items
   onDelete?: (itemId: string) => void
   activeTab: 'information' | 'definitions' | 'metadata'
 }
 
 interface Definition {
   id: string
+  vocabulary_item_id?: string
   meaning: string
   translation?: string
-  word_type?: string
+  usage_context?: string
+  word_type?:
+    | 'noun'
+    | 'verb'
+    | 'adjective'
+    | 'adverb'
+    | 'pronoun'
+    | 'preposition'
+    | 'conjunction'
+    | 'interjection'
+    | 'determiner'
+    | 'exclamation'
+  phrase_type?: 'idiom' | 'phrasal_verb' | 'collocation' | 'slang' | 'expression'
+  created_at?: string
   examples: Array<{
     sentence: string
     translation?: string
@@ -57,7 +71,7 @@ const WORD_TYPES = [
 ]
 
 const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
-  const [currentItem, setCurrentItem] = useState<vocabulary_item>(item)
+  const [currentItem, setCurrentItem] = useState<vocabulary_items>(item)
   const [creatingExample, setCreatingExample] = useState<Record<number, boolean>>({})
   const [newExampleData, setNewExampleData] = useState<
     Record<number, { sentence: string; translation: string }>
@@ -131,9 +145,13 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
     if (currentItem.metadata?.definitions && Array.isArray(currentItem.metadata.definitions)) {
       return currentItem.metadata.definitions.map((def: any, index: number) => ({
         id: def.id || `def_${Date.now()}_${index}`,
+        vocabulary_item_id: def.vocabulary_item_id || currentItem.id,
         meaning: def.meaning || '',
         translation: def.translation || '',
-        word_type: def.word_type || def.wordType || '',
+        usage_context: def.usage_context || '',
+        word_type: def.word_type || '',
+        phrase_type: def.phrase_type || undefined,
+        created_at: def.created_at || new Date().toISOString(),
         examples: Array.isArray(def.examples)
           ? def.examples.map((ex: any) => ({
               sentence: ex.sentence || '',
@@ -145,15 +163,19 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
     return [
       {
         id: '1',
+        vocabulary_item_id: currentItem.id,
         meaning: '',
         translation: '',
-        word_type: '',
+        usage_context: '',
+        word_type: undefined,
+        phrase_type: undefined,
+        created_at: new Date().toISOString(),
         examples: [{ sentence: '', translation: '' }]
       }
     ]
   }
 
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<FormData>(() => ({
     content: currentItem.content,
     pronunciation: currentItem.pronunciation || '',
     definitions: getInitialDefinitions(),
@@ -162,37 +184,36 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
     category: currentItem.category || '',
     tags: currentItem.tags || [],
     metadata: currentItem.metadata || {}
-  })
+  }))
 
   // ✅ State để quản lý tab hiện tại của từng definition (definition | example)
   const [activeDefTab, setActiveDefTab] = useState<Record<number, 'definition' | 'example'>>({})
 
   // ✅ State để quản lý slide index của example slider
   const [exampleSlideIndex, setExampleSlideIndex] = useState<Record<number, number>>({})
-  // ✅ Cache initial definitions để tránh re-create mỗi lần render
-  const [initialDefinitions, setInitialDefinitions] = useState<Definition[]>(() =>
-    getInitialDefinitions()
-  )
 
+  // ✅ Cache initial definitions - QUAN TRỌNG: phải sync với currentItem
+  const [initialDefinitions, setInitialDefinitions] = useState<Definition[]>([])
+
+  // ✅ Effect chính để sync data từ currentItem (bao gồm cả data từ cloud)
   useEffect(() => {
     const newInitialDefs = getInitialDefinitions()
-    setInitialDefinitions(newInitialDefs)
-  }, [currentItem.id])
-
-  useEffect(() => {
-    setFormData({
+    const newFormData = {
       content: currentItem.content,
       pronunciation: currentItem.pronunciation || '',
-      definitions: getInitialDefinitions(),
+      definitions: newInitialDefs,
       difficulty_level: currentItem.difficulty_level || 0,
       frequency_rank: currentItem.frequency_rank || 0,
       category: currentItem.category || '',
       tags: currentItem.tags || [],
       metadata: currentItem.metadata || {}
-    })
+    }
+
+    setInitialDefinitions(newInitialDefs)
+    setFormData(newFormData)
     setActiveDefTab({})
     setExampleSlideIndex({})
-  }, [currentItem.id])
+  }, [currentItem.id, currentItem.metadata]) // ✅ Thêm currentItem.metadata vào dependency
 
   const handleDifficultyChange = (value: string | string[]) => {
     const newValue = parseInt(typeof value === 'string' ? value : value[0])
@@ -215,8 +236,8 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[WordContentSection] Error updating difficulty:', error)
@@ -244,8 +265,8 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[WordContentSection] Error updating frequency:', error)
@@ -273,8 +294,8 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[WordContentSection] Error updating category:', error)
@@ -295,8 +316,8 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[WordContentSection] Error updating tags:', error)
@@ -327,8 +348,8 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
         setFormData((prev) => ({ ...prev, definitions: updatedDefinitions }))
         setInitialDefinitions(updatedDefinitions)
       }
@@ -351,8 +372,8 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[WordContentSection] Error updating metadata:', error)
@@ -362,7 +383,12 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
   const handleDefinitionChange = (defIndex: number, field: string, value: string) => {
     setFormData((prev) => {
       const newDefs = [...prev.definitions]
-      if (field === 'meaning' || field === 'translation' || field === 'word_type') {
+      if (
+        field === 'meaning' ||
+        field === 'translation' ||
+        field === 'usage_context' ||
+        field === 'word_type'
+      ) {
         newDefs[defIndex] = { ...newDefs[defIndex], [field]: value }
       }
       return { ...prev, definitions: newDefs }
@@ -376,9 +402,13 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
         ...prev.definitions,
         {
           id: `def_${Date.now()}_${prev.definitions.length}`,
+          vocabulary_item_id: currentItem.id,
           meaning: '',
           translation: '',
-          word_type: '',
+          usage_context: '',
+          word_type: undefined,
+          phrase_type: undefined,
+          created_at: new Date().toISOString(),
           examples: [{ sentence: '', translation: '' }]
         }
       ]
@@ -457,7 +487,7 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
   const handleSaveField = async (fieldKey: string, newValue: string) => {
     try {
       let updatedDefinitions = [...formData.definitions]
-      let updatedItem: Partial<vocabulary_item> = {}
+      let updatedItem: Partial<vocabulary_items> = {}
 
       if (fieldKey === 'content') {
         updatedItem.content = newValue
@@ -472,6 +502,11 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
           updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], meaning: newValue }
         } else if (field === 'translation') {
           updatedDefinitions[defIndex] = { ...updatedDefinitions[defIndex], translation: newValue }
+        } else if (field === 'usage_context') {
+          updatedDefinitions[defIndex] = {
+            ...updatedDefinitions[defIndex],
+            usage_context: newValue
+          }
         }
 
         updatedItem.metadata = {
@@ -508,8 +543,8 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(finalItem as vocabulary_item)
-        setCurrentItem(finalItem as vocabulary_item)
+        await db.updateVocabularyItem(finalItem as vocabulary_items)
+        setCurrentItem(finalItem as vocabulary_items)
         setFormData((prev) => ({
           ...prev,
           ...updatedItem,
@@ -750,6 +785,42 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
                         initialValue={initialDefinitions[defIndex]?.meaning || ''}
                         onSave={async (val) =>
                           await handleSaveField(`def_${defIndex}_meaning`, val)
+                        }
+                      />
+
+                      <CustomInput
+                        label="Translation"
+                        value={formData.definitions[defIndex]?.translation || ''}
+                        onChange={(val) => handleDefinitionChange(defIndex, 'translation', val)}
+                        variant="default"
+                        placeholder="Enter Vietnamese translation"
+                        size="sm"
+                        multiline={true}
+                        minRows={1}
+                        maxRows={10}
+                        autoResize={true}
+                        trackChanges={true}
+                        initialValue={initialDefinitions[defIndex]?.translation || ''}
+                        onSave={async (val) =>
+                          await handleSaveField(`def_${defIndex}_translation`, val)
+                        }
+                      />
+
+                      <CustomInput
+                        label="Usage Context"
+                        value={formData.definitions[defIndex]?.usage_context || ''}
+                        onChange={(val) => handleDefinitionChange(defIndex, 'usage_context', val)}
+                        variant="default"
+                        placeholder="When to use this definition (e.g., 'formal writing', 'spoken English')"
+                        size="sm"
+                        multiline={true}
+                        minRows={1}
+                        maxRows={5}
+                        autoResize={true}
+                        trackChanges={true}
+                        initialValue={initialDefinitions[defIndex]?.usage_context || ''}
+                        onSave={async (val) =>
+                          await handleSaveField(`def_${defIndex}_usage_context`, val)
                         }
                       />
 

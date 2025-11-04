@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import CollectionListPanel from './components/CollectionListPanel'
 import CollectionDetailPanel from './components/CollectionDetailPanel'
-import { vocabulary_item } from './types/vocabulary'
-import { grammar_item } from './types/grammar'
+import { vocabulary_items } from './types/vocabulary'
+import { grammar_items } from './types/grammar'
 
 const CollectionPage = () => {
-  const [selectedItem, setSelectedItem] = useState<vocabulary_item | grammar_item | null>(null)
+  const [selectedItem, setSelectedItem] = useState<vocabulary_items | grammar_items | null>(null)
   const location = useLocation()
-  const [filterType, setFilterType] = useState<'all' | vocabulary_item['item_type'] | 'grammar'>(
+  const [filterType, setFilterType] = useState<'all' | vocabulary_items['item_type'] | 'grammar'>(
     'all'
   )
 

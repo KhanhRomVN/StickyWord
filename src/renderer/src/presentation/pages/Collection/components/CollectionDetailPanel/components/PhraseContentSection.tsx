@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { vocabulary_item } from '../../../types/vocabulary'
+import { vocabulary_items } from '../../../types/vocabulary'
 import CustomInput from '../../../../../../components/common/CustomInput'
 import CustomCombobox from '../../../../../../components/common/CustomCombobox'
 import CustomTag from '../../../../../../components/common/CustomTag'
@@ -9,7 +9,7 @@ import { Plus, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 interface PhraseContentSectionProps {
-  item: vocabulary_item
+  item: vocabulary_items
   onDelete?: (itemId: string) => void
   activeTab: 'information' | 'definitions' | 'metadata'
 }
@@ -45,7 +45,7 @@ const PHRASE_TYPES = [
 ]
 
 const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) => {
-  const [currentItem, setCurrentItem] = useState<vocabulary_item>(item)
+  const [currentItem, setCurrentItem] = useState<vocabulary_items>(item)
   const [creatingExample, setCreatingExample] = useState<Record<number, boolean>>({})
   const [newExampleData, setNewExampleData] = useState<
     Record<number, { sentence: string; translation: string }>
@@ -186,7 +186,7 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
   const handleSaveField = async (fieldKey: string, newValue: string) => {
     try {
       let updatedDefinitions = [...formData.definitions]
-      let updatedItem: Partial<vocabulary_item> = {}
+      let updatedItem: Partial<vocabulary_items> = {}
 
       if (fieldKey === 'content') {
         updatedItem.content = newValue
@@ -237,8 +237,8 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(finalItem as vocabulary_item)
-        setCurrentItem(finalItem as vocabulary_item)
+        await db.updateVocabularyItem(finalItem as vocabulary_items)
+        setCurrentItem(finalItem as vocabulary_items)
         setFormData((prev) => ({
           ...prev,
           ...updatedItem,
@@ -275,8 +275,8 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[PhraseContentSection] Error updating difficulty:', error)
@@ -304,8 +304,8 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[PhraseContentSection] Error updating frequency:', error)
@@ -333,8 +333,8 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[PhraseContentSection] Error updating category:', error)
@@ -355,8 +355,8 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[PhraseContentSection] Error updating tags:', error)
@@ -387,8 +387,8 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
         setFormData((prev) => ({ ...prev, definitions: updatedDefinitions }))
         setInitialDefinitions(updatedDefinitions)
       }
@@ -411,8 +411,8 @@ const PhraseContentSection = ({ item, activeTab }: PhraseContentSectionProps) =>
       const db = getCloudDatabase()
 
       if (db) {
-        await db.updateVocabularyItem(updatedItem as vocabulary_item)
-        setCurrentItem(updatedItem as vocabulary_item)
+        await db.updateVocabularyItem(updatedItem as vocabulary_items)
+        setCurrentItem(updatedItem as vocabulary_items)
       }
     } catch (error) {
       console.error('[PhraseContentSection] Error updating metadata:', error)

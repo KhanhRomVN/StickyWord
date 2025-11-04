@@ -24,11 +24,11 @@ export class SessionService {
     const vocabResult = await window.api.cloudDatabase.query(
       `
       SELECT v.id
-      FROM vocabulary_item v
+      FROM vocabulary_items v
       LEFT JOIN vocabulary_analytics va ON v.id = va.vocabulary_item_id
       ORDER BY 
         COALESCE(va.mastery_score, 0) ASC,
-        COALESCE(va.last_reviewed_at, v.created_at) ASC
+        COALESCE(va.next_review, va.last_reviewed, v.created_at) ASC
       LIMIT $1
       `,
       [vocabCount]

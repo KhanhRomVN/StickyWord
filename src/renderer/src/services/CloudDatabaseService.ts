@@ -1,5 +1,5 @@
-import { vocabulary_item } from '../presentation/pages/Collection/types/vocabulary'
-import { grammar_item } from '../presentation/pages/Collection/types/grammar'
+import { vocabulary_items } from '../presentation/pages/Collection/types/vocabulary'
+import { grammar_items } from '../presentation/pages/Collection/types/grammar'
 
 export class CloudDatabaseService {
   private connectionString: string
@@ -53,16 +53,16 @@ export class CloudDatabaseService {
     }
   }
 
-  async saveVocabularyItem(item: vocabulary_item): Promise<void> {
+  async saveVocabularyItem(item: vocabulary_items): Promise<void> {
     if (!window.api) throw new Error('Electron API not available')
 
-    // 1. Insert vocabulary_item
+    // 1. Insert vocabulary_items
     const vocabQuery = `
-    INSERT INTO vocabulary_item (
+    INSERT INTO vocabulary_items (
       id, item_type, content, pronunciation,
       difficulty_level, frequency_rank, category, tags, metadata,
-      created_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
   `
 
     const vocabParams = [
@@ -75,7 +75,8 @@ export class CloudDatabaseService {
       item.category || null,
       JSON.stringify(item.tags || []),
       JSON.stringify(item.metadata || {}),
-      item.created_at
+      item.created_at,
+      item.updated_at || item.created_at
     ]
 
     const vocabResult = await window.api.cloudDatabase.query(vocabQuery, vocabParams)
@@ -89,8 +90,6 @@ export class CloudDatabaseService {
       for (const def of definitions) {
         const defId = `def_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-        // ✅ FIX: Validate và normalize word_type/phrase_type
-        let validWordType = null
         let validPhraseType = null
 
         const validWordTypes = [
@@ -108,7 +107,6 @@ export class CloudDatabaseService {
         const validPhraseTypes = ['idiom', 'phrasal_verb', 'collocation', 'slang', 'expression']
 
         if (def.wordType && validWordTypes.includes(def.wordType)) {
-          validWordType = def.wordType
         }
         if (def.phraseType && validPhraseTypes.includes(def.phraseType)) {
           validPhraseType = def.phraseType
@@ -120,9 +118,9 @@ export class CloudDatabaseService {
         }
 
         const defQuery = `
-        INSERT INTO definition (
-          id, vocabulary_item_id, meaning, translation, word_type, phrase_type, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO vocabulary_definitions (
+          id, vocabulary_item_id, meaning, translation, usage_context, word_type, phrase_type, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `
 
         const defParams = [
@@ -130,6 +128,7 @@ export class CloudDatabaseService {
           item.id,
           def.meaning || '',
           def.translation || null,
+          def.usage_context || null,
           def.wordType || null,
           def.phraseType || null,
           new Date().toISOString()
@@ -148,7 +147,7 @@ export class CloudDatabaseService {
             const exampleId = `ex_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
             const exampleQuery = `
-            INSERT INTO example (
+            INSERT INTO vocabulary_examples (
               id, definition_id, sentence, translation, created_at
             ) VALUES ($1, $2, $3, $4, $5)
           `
@@ -171,12 +170,12 @@ export class CloudDatabaseService {
     }
   }
 
-  async saveGrammarItem(item: grammar_item): Promise<void> {
+  async saveGrammarItem(item: grammar_items): Promise<void> {
     if (!window.api) throw new Error('Electron API not available')
 
-    // 1. Insert grammar_item
+    // 1. Insert grammar_items
     const grammarQuery = `
-    INSERT INTO grammar_item (
+    INSERT INTO grammar_items (
       id, item_type, title,
       difficulty_level, frequency_rank, category, tags, metadata,
       created_at
@@ -295,14 +294,14 @@ export class CloudDatabaseService {
 
   async getAllItems(
     filterType?: 'all' | 'word' | 'phrase' | 'grammar'
-  ): Promise<(vocabulary_item | grammar_item)[]> {
+  ): Promise<(vocabulary_items | grammar_items)[]> {
     if (!window.api) throw new Error('Electron API not available')
 
-    let vocabularyItems: vocabulary_item[] = []
-    let grammarItems: grammar_item[] = []
+    let vocabularyItems: vocabulary_items[] = []
+    let grammarItems: grammar_items[] = []
 
     if (!filterType || filterType === 'all' || filterType === 'word' || filterType === 'phrase') {
-      let vocabQuery = 'SELECT * FROM vocabulary_item'
+      let vocabQuery = 'SELECT * FROM vocabulary_items'
       const vocabParams: any[] = []
 
       if (filterType && filterType !== 'all') {
@@ -323,7 +322,7 @@ export class CloudDatabaseService {
     }
 
     if (!filterType || filterType === 'all' || filterType === 'grammar') {
-      const grammarQuery = 'SELECT * FROM grammar_item ORDER BY created_at DESC'
+      const grammarQuery = 'SELECT * FROM grammar_items ORDER BY created_at DESC'
       const grammarResult = await window.api.cloudDatabase.query(grammarQuery)
       if (grammarResult.success) {
         grammarItems = grammarResult.rows.map((row) => ({
@@ -347,7 +346,7 @@ export class CloudDatabaseService {
     let changes = 0
 
     const vocabResult = await window.api.cloudDatabase.query(
-      'DELETE FROM vocabulary_item WHERE id = $1',
+      'DELETE FROM vocabulary_items WHERE id = $1',
       [id]
     )
     if (vocabResult.success) {
@@ -356,7 +355,7 @@ export class CloudDatabaseService {
 
     if (changes === 0) {
       const grammarResult = await window.api.cloudDatabase.query(
-        'DELETE FROM grammar_item WHERE id = $1',
+        'DELETE FROM grammar_items WHERE id = $1',
         [id]
       )
       if (grammarResult.success) {
@@ -367,19 +366,20 @@ export class CloudDatabaseService {
     return changes
   }
 
-  async updateVocabularyItem(item: vocabulary_item): Promise<number> {
+  async updateVocabularyItem(item: vocabulary_items): Promise<number> {
     if (!window.api) throw new Error('Electron API not available')
 
     const query = `
-      UPDATE vocabulary_item SET
+      UPDATE vocabulary_items SET
         content = $1,
         pronunciation = $2,
         difficulty_level = $3,
         frequency_rank = $4,
         category = $5,
         tags = $6,
-        metadata = $7
-      WHERE id = $8
+        metadata = $7,
+        updated_at = $8
+      WHERE id = $9
     `
 
     const params = [
@@ -390,6 +390,7 @@ export class CloudDatabaseService {
       item.category || null,
       JSON.stringify(item.tags || []),
       JSON.stringify(item.metadata || {}),
+      new Date().toISOString(),
       item.id
     ]
 
@@ -400,11 +401,11 @@ export class CloudDatabaseService {
     return result.rowCount
   }
 
-  async updateGrammarItem(item: grammar_item): Promise<number> {
+  async updateGrammarItem(item: grammar_items): Promise<number> {
     if (!window.api) throw new Error('Electron API not available')
 
     const query = `
-      UPDATE grammar_item SET
+      UPDATE grammar_items SET
         title = $1,
         difficulty_level = $2,
         frequency_rank = $3,
@@ -429,6 +430,206 @@ export class CloudDatabaseService {
       throw new Error(result.error || 'Failed to update grammar item')
     }
     return result.rowCount
+  }
+
+  async saveVocabularyDefinition(definition: {
+    id: string
+    vocabulary_item_id: string
+    meaning: string
+    translation?: string
+    usage_context?: string
+    word_type?: string
+    phrase_type?: string
+    created_at: string
+  }): Promise<void> {
+    if (!window.api) throw new Error('Electron API not available')
+
+    const query = `
+      INSERT INTO vocabulary_definitions (
+        id, vocabulary_item_id, meaning, translation, usage_context, word_type, phrase_type, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `
+
+    const params = [
+      definition.id,
+      definition.vocabulary_item_id,
+      definition.meaning,
+      definition.translation || null,
+      definition.usage_context || null,
+      definition.word_type || null,
+      definition.phrase_type || null,
+      definition.created_at
+    ]
+
+    const result = await window.api.cloudDatabase.query(query, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save vocabulary definition')
+    }
+  }
+
+  async saveVocabularyExample(example: {
+    id: string
+    definition_id: string
+    sentence: string
+    translation?: string
+    created_at: string
+  }): Promise<void> {
+    if (!window.api) throw new Error('Electron API not available')
+
+    const query = `
+      INSERT INTO vocabulary_examples (
+        id, definition_id, sentence, translation, created_at
+      ) VALUES ($1, $2, $3, $4, $5)
+    `
+
+    const params = [
+      example.id,
+      example.definition_id,
+      example.sentence,
+      example.translation || null,
+      example.created_at
+    ]
+
+    const result = await window.api.cloudDatabase.query(query, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save vocabulary example')
+    }
+  }
+
+  async saveVocabularyRelationship(relationship: {
+    id: string
+    vocabulary_item_id: string
+    relationship_type: string
+    vocabulary_item_type: 'word' | 'phrase'
+    content?: string
+    content_translation?: string
+    metadata?: Record<string, any>
+    created_at: string
+  }): Promise<void> {
+    if (!window.api) throw new Error('Electron API not available')
+
+    const query = `
+      INSERT INTO vocabulary_relationship (
+        id, vocabulary_item_id, relationship_type, vocabulary_item_type, content, content_translation, metadata, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `
+
+    const params = [
+      relationship.id,
+      relationship.vocabulary_item_id,
+      relationship.relationship_type,
+      relationship.vocabulary_item_type,
+      relationship.content || null,
+      relationship.content_translation || null,
+      JSON.stringify(relationship.metadata || {}),
+      relationship.created_at
+    ]
+
+    const result = await window.api.cloudDatabase.query(query, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save vocabulary relationship')
+    }
+  }
+
+  async saveGrammarRule(rule: {
+    id: string
+    grammar_item_id: string
+    rule_description: string
+    translation?: string
+    formula?: string
+    usage_context?: string
+    notes?: string
+    created_at: string
+  }): Promise<void> {
+    if (!window.api) throw new Error('Electron API not available')
+
+    const query = `
+      INSERT INTO grammar_rule (
+        id, grammar_item_id, rule_description, translation, formula, usage_context, notes, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `
+
+    const params = [
+      rule.id,
+      rule.grammar_item_id,
+      rule.rule_description,
+      rule.translation || null,
+      rule.formula || null,
+      rule.usage_context || null,
+      rule.notes || null,
+      rule.created_at
+    ]
+
+    const result = await window.api.cloudDatabase.query(query, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save grammar rule')
+    }
+  }
+
+  async saveGrammarExample(example: {
+    id: string
+    grammar_rule_id: string
+    sentence: string
+    translation?: string
+    is_correct: boolean
+    explanation?: string
+    created_at: string
+  }): Promise<void> {
+    if (!window.api) throw new Error('Electron API not available')
+
+    const query = `
+      INSERT INTO grammar_example (
+        id, grammar_rule_id, sentence, translation, is_correct, explanation, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `
+
+    const params = [
+      example.id,
+      example.grammar_rule_id,
+      example.sentence,
+      example.translation || null,
+      example.is_correct,
+      example.explanation || null,
+      example.created_at
+    ]
+
+    const result = await window.api.cloudDatabase.query(query, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save grammar example')
+    }
+  }
+
+  async saveGrammarCommonMistake(mistake: {
+    id: string
+    grammar_item_id: string
+    incorrect_example: string
+    correct_example: string
+    explanation: string
+    translation?: string
+    created_at: string
+  }): Promise<void> {
+    if (!window.api) throw new Error('Electron API not available')
+
+    const query = `
+      INSERT INTO grammar_common_mistake (
+        id, grammar_item_id, incorrect_example, correct_example, explanation, translation, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `
+
+    const params = [
+      mistake.id,
+      mistake.grammar_item_id,
+      mistake.incorrect_example,
+      mistake.correct_example,
+      mistake.explanation,
+      mistake.translation || null,
+      mistake.created_at
+    ]
+
+    const result = await window.api.cloudDatabase.query(query, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to save grammar common mistake')
+    }
   }
 }
 

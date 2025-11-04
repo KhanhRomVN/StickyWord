@@ -423,7 +423,7 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
       return
     }
 
-    const checkQuery = `SELECT id FROM vocabulary_item WHERE content = $1 AND item_type = $2`
+    const checkQuery = `SELECT id FROM vocabulary_items WHERE content = $1 AND item_type = $2`
     const checkResult = await window.api.cloudDatabase.query(checkQuery, [
       collection.content,
       collection.type
@@ -435,7 +435,9 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
       const updateMasteryQuery = `
       UPDATE vocabulary_analytics 
       SET mastery_score = GREATEST(0, mastery_score - 5), 
-          updated_at = $2
+          updated_at = $2,
+          last_reviewed = $2,
+          next_review = $2 + INTERVAL '1 day'
       WHERE vocabulary_item_id = $1
     `
       await window.api.cloudDatabase.query(updateMasteryQuery, [

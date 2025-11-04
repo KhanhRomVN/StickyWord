@@ -178,7 +178,7 @@ async function initializeCloudDatabaseSchema() {
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
       // === VOCABULARY TABLES ===
-      `CREATE TABLE IF NOT EXISTS vocabulary_item (
+      `CREATE TABLE IF NOT EXISTS vocabulary_items (
         id TEXT PRIMARY KEY,
         item_type TEXT NOT NULL CHECK (item_type IN ('word', 'phrase')),
         content TEXT NOT NULL,
@@ -188,42 +188,46 @@ async function initializeCloudDatabaseSchema() {
         category TEXT,
         tags JSONB DEFAULT '[]'::jsonb,
         metadata JSONB DEFAULT '{}'::jsonb,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
-      `CREATE TABLE IF NOT EXISTS definition (
+      `CREATE TABLE IF NOT EXISTS vocabulary_definitions (
         id TEXT PRIMARY KEY,
-        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
+        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_items(id) ON DELETE CASCADE,
         meaning TEXT NOT NULL,
         translation TEXT,
+        usage_context TEXT,
         word_type TEXT CHECK (word_type IN ('noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition', 'conjunction', 'interjection', 'determiner', 'exclamation')),
         phrase_type TEXT CHECK (phrase_type IN ('idiom', 'phrasal_verb', 'collocation', 'slang', 'expression')),
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
-      `CREATE TABLE IF NOT EXISTS example (
+      `CREATE TABLE IF NOT EXISTS vocabulary_examples (
         id TEXT PRIMARY KEY,
-        definition_id TEXT NOT NULL REFERENCES definition(id) ON DELETE CASCADE,
+        definition_id TEXT NOT NULL REFERENCES vocabulary_definitions(id) ON DELETE CASCADE,
         sentence TEXT NOT NULL,
         translation TEXT,
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
-      `CREATE TABLE IF NOT EXISTS vocabulary_relation (
-        id TEXT PRIMARY KEY,
-        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
-        related_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
-        relation_type TEXT NOT NULL CHECK (relation_type IN ('synonym', 'antonym', 'collocation', 'related')),
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
-      )`,
       `CREATE TABLE IF NOT EXISTS vocabulary_analytics (
         id TEXT PRIMARY KEY,
-        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
+        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_items(id) ON DELETE CASCADE,
         mastery_score INTEGER NOT NULL DEFAULT 0 CHECK (mastery_score BETWEEN 0 AND 100),
-        last_reviewed_at TIMESTAMP,
-        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        last_reviewed TIMESTAMP,
+        next_review TIMESTAMP,
+        streak INTEGER NOT NULL DEFAULT 0,
+        common_errors JSONB DEFAULT '[]'::jsonb,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
-      `CREATE TABLE IF NOT EXISTS vocabulary_question_history (
+      `CREATE TABLE IF NOT EXISTS vocabulary_relationship (
         id TEXT PRIMARY KEY,
-        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_item(id) ON DELETE CASCADE,
-        question_id TEXT NOT NULL
+        vocabulary_item_id TEXT NOT NULL REFERENCES vocabulary_items(id) ON DELETE CASCADE,
+        relationship_type TEXT NOT NULL,
+        vocabulary_item_type TEXT NOT NULL CHECK (vocabulary_item_type IN ('word', 'phrase')),
+        content TEXT,
+        content_translation TEXT,
+        metadata JSONB DEFAULT '{}'::jsonb,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
 
       // === GRAMMAR TABLES ===
@@ -287,12 +291,16 @@ async function initializeCloudDatabaseSchema() {
       )`,
 
       // === INDEXES ===
-      `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_item(item_type)`,
-      `CREATE INDEX IF NOT EXISTS idx_vocab_created ON vocabulary_item(created_at DESC)`,
-      `CREATE INDEX IF NOT EXISTS idx_definition_vocab ON definition(vocabulary_item_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_example_def ON example(definition_id)`,
-      `CREATE INDEX IF NOT EXISTS idx_vocab_relation ON vocabulary_relation(vocabulary_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_items(item_type)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_created ON vocabulary_items(created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_updated ON vocabulary_items(updated_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_content ON vocabulary_items(content)`,
+      `CREATE INDEX IF NOT EXISTS idx_definition_vocab ON vocabulary_definitions(vocabulary_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_example_def ON vocabulary_examples(definition_id)`,
       `CREATE INDEX IF NOT EXISTS idx_vocab_analytics ON vocabulary_analytics(vocabulary_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_analytics_next_review ON vocabulary_analytics(next_review)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_relationship ON vocabulary_relationship(vocabulary_item_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_vocab_relationship_type ON vocabulary_relationship(relationship_type)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_item(item_type)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_created ON grammar_item(created_at DESC)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_rule ON grammar_rule(grammar_item_id)`,
@@ -403,7 +411,7 @@ function setupCloudDatabaseHandlers() {
       if (!cloudDbPool) throw new Error('Cloud database not connected')
 
       const queries = [
-        `CREATE TABLE IF NOT EXISTS vocabulary_item (
+        `CREATE TABLE IF NOT EXISTS vocabulary_items (
           id TEXT PRIMARY KEY,
           item_type TEXT NOT NULL,
           content TEXT NOT NULL,
@@ -428,7 +436,7 @@ function setupCloudDatabaseHandlers() {
           created_at TIMESTAMP NOT NULL,
           updated_at TIMESTAMP NOT NULL
         )`,
-        `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_item(item_type)`,
+        `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_items(item_type)`,
         `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_item(item_type)`
       ]
 

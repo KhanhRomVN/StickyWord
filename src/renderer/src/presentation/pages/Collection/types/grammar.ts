@@ -1,5 +1,5 @@
 // === CORE GRAMMAR ===
-export interface grammar_item {
+export interface grammar_items {
   id: string
   item_type: 'tense' | 'structure' | 'rule' | 'pattern'
   title: string // e.g., "Present Perfect", "Conditional Sentences Type 2"
@@ -13,7 +13,7 @@ export interface grammar_item {
 }
 
 // === GRAMMAR RULES & EXPLANATIONS ===
-export interface grammar_rule {
+export interface grammar_rules {
   id: string
   grammar_item_id: string
   rule_description: string // Description of the rule
@@ -24,7 +24,7 @@ export interface grammar_rule {
   created_at: string
 }
 
-export interface grammar_example {
+export interface grammar_examples {
   id: string
   grammar_rule_id: string
   sentence: string
@@ -35,7 +35,7 @@ export interface grammar_example {
 }
 
 // === COMMON MISTAKES ===
-export interface grammar_common_mistake {
+export interface grammar_common_mistakes {
   id: string
   grammar_item_id: string
   incorrect_example: string
@@ -46,7 +46,7 @@ export interface grammar_common_mistake {
 }
 
 // === RELATIONSHIPS ===
-export interface grammar_relation {
+export interface grammar_relationships {
   id: string
   grammar_item_id: string
   related_item_id: string
@@ -59,7 +59,10 @@ export interface grammar_analytics {
   id: string
   grammar_item_id: string
   mastery_score: number // 0-100
-  last_reviewed_at?: string
+  next_review?: string
+  streak?: number
+  last_reviewed?: string
+  common_errors?: string[]
   created_at: string
   updated_at: string
 }
