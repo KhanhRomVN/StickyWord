@@ -1,14 +1,14 @@
-import { vocabulary_item } from '../types/vocabulary'
+import { vocabulary_items } from '../types/vocabulary'
 
 export const filterItemsByType = (
-  items: vocabulary_item[],
-  type: 'all' | vocabulary_item['item_type']
-): vocabulary_item[] => {
+  items: vocabulary_items[],
+  type: 'all' | vocabulary_items['item_type']
+): vocabulary_items[] => {
   if (type === 'all') return items
   return items.filter((item) => item.item_type === type)
 }
 
-export const searchItems = (items: vocabulary_item[], searchTerm: string): vocabulary_item[] => {
+export const searchItems = (items: vocabulary_items[], searchTerm: string): vocabulary_items[] => {
   if (!searchTerm.trim()) return items
 
   const term = searchTerm.toLowerCase()
@@ -19,9 +19,9 @@ export const searchItems = (items: vocabulary_item[], searchTerm: string): vocab
 }
 
 export const sortItems = (
-  items: vocabulary_item[],
+  items: vocabulary_items[],
   sortBy: 'newest' | 'oldest' | 'content'
-): vocabulary_item[] => {
+): vocabulary_items[] => {
   const sorted = [...items]
 
   switch (sortBy) {

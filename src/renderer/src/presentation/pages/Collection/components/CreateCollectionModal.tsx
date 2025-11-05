@@ -121,7 +121,6 @@ const CreateCollectionModal = ({
 
         await db.saveVocabularyItem(newItem)
 
-        // ✅ 2. Tạo vocabulary_definitions + vocabulary_examples
         if (aiData.definitions && aiData.definitions.length > 0) {
           for (const def of aiData.definitions) {
             const definitionId = `def_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -194,7 +193,6 @@ const CreateCollectionModal = ({
 
         await db.saveVocabularyItem(newItem)
 
-        // ✅ 2. Tạo vocabulary_definitions + vocabulary_examples
         if (aiData.definitions && aiData.definitions.length > 0) {
           for (const def of aiData.definitions) {
             const definitionId = `def_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`

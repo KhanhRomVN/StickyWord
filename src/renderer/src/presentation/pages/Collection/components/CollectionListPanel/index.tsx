@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
-import { vocabulary_item } from '../../types/vocabulary'
-import { grammar_item } from '../../types/grammar'
+import { vocabulary_items } from '../../types/vocabulary'
+import { grammar_items } from '../../types/grammar'
 import CollectionCard from './components/CollectionCard'
 import CreateCollectionModal from '../CreateCollectionModal'
 import CustomButton from '../../../../../components/common/CustomButton'
@@ -8,12 +8,12 @@ import CustomDropdown from '../../../../../components/common/CustomDropdown'
 import FilterOverlay from './components/FilterOverlay'
 import { Filter, Plus, Search, BookOpen, MessageSquare, BookMarked } from 'lucide-react'
 
-type FilterType = 'all' | vocabulary_item['item_type'] | grammar_item['item_type'] | 'grammar'
+type FilterType = 'all' | vocabulary_items['item_type'] | grammar_items['item_type'] | 'grammar'
 
 interface CollectionListPanelProps {
-  onSelectItem: (item: vocabulary_item | grammar_item | null) => void
-  selectedItem: vocabulary_item | grammar_item | null
-  defaultFilterType?: 'all' | vocabulary_item['item_type'] | 'grammar'
+  onSelectItem: (item: vocabulary_items | grammar_items | null) => void
+  selectedItem: vocabulary_items | grammar_items | null
+  defaultFilterType?: 'all' | vocabulary_items['item_type'] | 'grammar'
   onItemDeleted?: (itemId: string) => void
 }
 const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanelProps) => {
@@ -23,7 +23,7 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isCreateDropdownOpen, setIsCreateDropdownOpen] = useState(false)
   const [createType, setCreateType] = useState<'word' | 'phrase' | 'grammar'>('word')
-  const [items, setItems] = useState<(vocabulary_item | grammar_item)[]>([])
+  const [items, setItems] = useState<(vocabulary_items | grammar_items)[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [filters, setFilters] = useState<{
@@ -41,8 +41,8 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
     tags: []
   })
 
-  // Type guard để kiểm tra xem item có phải grammar_item không
-  const isGrammarItem = (item: vocabulary_item | grammar_item): item is grammar_item => {
+  // Type guard để kiểm tra xem item có phải grammar_items không
+  const isGrammarItem = (item: vocabulary_items | grammar_items): item is grammar_items => {
     return 'title' in item && !('content' in item)
   }
 
@@ -98,7 +98,7 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
       if (db && isMounted.current) {
         const response = await db.getAllItems(apiFilter)
 
-        setItems(response as (vocabulary_item | grammar_item)[])
+        setItems(response as (vocabulary_items | grammar_items)[])
       } else {
         console.warn('[CollectionListPanel] ⚠️ Database not connected or unmounted:', {
           db: !!db,
@@ -124,7 +124,7 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
     }
   }, [])
 
-  const getSearchableText = (item: vocabulary_item | grammar_item): string => {
+  const getSearchableText = (item: vocabulary_items | grammar_items): string => {
     return isGrammarItem(item) ? item.title : item.content
   }
 
@@ -233,7 +233,7 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
     }
   }, [items])
 
-  const handleCreateSuccess = async (newItems: (vocabulary_item | grammar_item)[]) => {
+  const handleCreateSuccess = async (newItems: (vocabulary_items | grammar_items)[]) => {
     try {
       if (newItems.length === 0) {
         console.warn('[CollectionListPanel] ⚠️ No items to save!')
@@ -363,7 +363,37 @@ const CollectionListPanel = ({ onSelectItem, selectedItem }: CollectionListPanel
                 key={item.id}
                 item={item}
                 isSelected={selectedItem?.id === item.id}
-                onClick={() => onSelectItem(item)}
+                onClick={async () => {
+                  try {
+                    const { getCloudDatabase } = await import(
+                      '../../../../../services/CloudDatabaseService'
+                    )
+                    const db = getCloudDatabase()
+
+                    if (!db) {
+                      console.warn(
+                        '[CollectionListPanel] Database not connected, using original item'
+                      )
+                      onSelectItem(item)
+                      return
+                    }
+
+                    // ✅ Load chi tiết cho vocabulary items
+                    if ('content' in item) {
+                      const detailedItem = await db.getVocabularyWithDetails(item.id)
+                      if (detailedItem) {
+                        onSelectItem(detailedItem)
+                        return
+                      }
+                    }
+
+                    // Fallback: use original item
+                    onSelectItem(item)
+                  } catch (error) {
+                    console.error('[CollectionListPanel] Error loading item details:', error)
+                    onSelectItem(item)
+                  }
+                }}
               />
             ))}
           </div>

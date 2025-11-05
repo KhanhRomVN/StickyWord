@@ -77,7 +77,7 @@ export interface grammar_question_history {
 // === EXAMPLE DATA STRUCTURE ===
 // Example 1: Present Perfect Tense
 // {
-//   "grammar_item": {
+//   "grammar_items": {
 //     "id": "grammar_001",
 //     "item_type": "tense",
 //     "title": "Present Perfect",
@@ -157,7 +157,7 @@ export interface grammar_question_history {
 //
 // Example 2: Conditional Sentences Type 2
 // {
-//   "grammar_item": {
+//   "grammar_items": {
 //     "id": "grammar_002",
 //     "item_type": "structure",
 //     "title": "Conditional Sentences Type 2",

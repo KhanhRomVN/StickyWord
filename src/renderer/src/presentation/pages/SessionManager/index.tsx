@@ -132,7 +132,7 @@ const SessionManagerPage = () => {
       const vocabResult = await window.api!.cloudDatabase.query(
         `
         SELECT v.id, v.content, v.item_type
-        FROM vocabulary_item v
+        FROM vocabulary_items v
         LEFT JOIN vocabulary_analytics va ON v.id = va.vocabulary_item_id
         ORDER BY COALESCE(va.mastery_score, 0) ASC
         LIMIT 5
@@ -143,7 +143,7 @@ const SessionManagerPage = () => {
       const grammarResult = await window.api!.cloudDatabase.query(
         `
         SELECT g.id, g.title, g.item_type
-        FROM grammar_item g
+        FROM grammar_items g
         LEFT JOIN grammar_analytics ga ON g.id = ga.grammar_item_id
         ORDER BY COALESCE(ga.mastery_score, 0) ASC
         LIMIT 5

@@ -231,7 +231,7 @@ async function initializeCloudDatabaseSchema() {
       )`,
 
       // === GRAMMAR TABLES ===
-      `CREATE TABLE IF NOT EXISTS grammar_item (
+      `CREATE TABLE IF NOT EXISTS grammar_items (
         id TEXT PRIMARY KEY,
         item_type TEXT NOT NULL CHECK (item_type IN ('tense', 'structure', 'rule', 'pattern')),
         title TEXT NOT NULL,
@@ -244,7 +244,7 @@ async function initializeCloudDatabaseSchema() {
       )`,
       `CREATE TABLE IF NOT EXISTS grammar_rule (
         id TEXT PRIMARY KEY,
-        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_items(id) ON DELETE CASCADE,
         rule_description TEXT NOT NULL,
         translation TEXT,
         formula TEXT,
@@ -263,7 +263,7 @@ async function initializeCloudDatabaseSchema() {
       )`,
       `CREATE TABLE IF NOT EXISTS grammar_common_mistake (
         id TEXT PRIMARY KEY,
-        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_items(id) ON DELETE CASCADE,
         incorrect_example TEXT NOT NULL,
         correct_example TEXT NOT NULL,
         explanation TEXT NOT NULL,
@@ -272,21 +272,21 @@ async function initializeCloudDatabaseSchema() {
       )`,
       `CREATE TABLE IF NOT EXISTS grammar_relation (
         id TEXT PRIMARY KEY,
-        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
-        related_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_items(id) ON DELETE CASCADE,
+        related_item_id TEXT NOT NULL REFERENCES grammar_items(id) ON DELETE CASCADE,
         relation_type TEXT NOT NULL CHECK (relation_type IN ('prerequisite', 'related', 'contrast', 'progression')),
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
       `CREATE TABLE IF NOT EXISTS grammar_analytics (
         id TEXT PRIMARY KEY,
-        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_items(id) ON DELETE CASCADE,
         mastery_score INTEGER NOT NULL DEFAULT 0 CHECK (mastery_score BETWEEN 0 AND 100),
         last_reviewed_at TIMESTAMP,
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
       )`,
       `CREATE TABLE IF NOT EXISTS grammar_question_history (
         id TEXT PRIMARY KEY,
-        grammar_item_id TEXT NOT NULL REFERENCES grammar_item(id) ON DELETE CASCADE,
+        grammar_item_id TEXT NOT NULL REFERENCES grammar_items(id) ON DELETE CASCADE,
         question_id TEXT NOT NULL
       )`,
 
@@ -301,8 +301,8 @@ async function initializeCloudDatabaseSchema() {
       `CREATE INDEX IF NOT EXISTS idx_vocab_analytics_next_review ON vocabulary_analytics(next_review)`,
       `CREATE INDEX IF NOT EXISTS idx_vocab_relationship ON vocabulary_relationship(vocabulary_item_id)`,
       `CREATE INDEX IF NOT EXISTS idx_vocab_relationship_type ON vocabulary_relationship(relationship_type)`,
-      `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_item(item_type)`,
-      `CREATE INDEX IF NOT EXISTS idx_grammar_created ON grammar_item(created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_items(item_type)`,
+      `CREATE INDEX IF NOT EXISTS idx_grammar_created ON grammar_items(created_at DESC)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_rule ON grammar_rule(grammar_item_id)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_example ON grammar_example(grammar_rule_id)`,
       `CREATE INDEX IF NOT EXISTS idx_grammar_mistake ON grammar_common_mistake(grammar_item_id)`,
@@ -424,7 +424,7 @@ function setupCloudDatabaseHandlers() {
           created_at TIMESTAMP NOT NULL,
           updated_at TIMESTAMP NOT NULL
         )`,
-        `CREATE TABLE IF NOT EXISTS grammar_item (
+        `CREATE TABLE IF NOT EXISTS grammar_items (
           id TEXT PRIMARY KEY,
           item_type TEXT NOT NULL,
           title TEXT NOT NULL,
@@ -437,7 +437,7 @@ function setupCloudDatabaseHandlers() {
           updated_at TIMESTAMP NOT NULL
         )`,
         `CREATE INDEX IF NOT EXISTS idx_vocab_type ON vocabulary_items(item_type)`,
-        `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_item(item_type)`
+        `CREATE INDEX IF NOT EXISTS idx_grammar_type ON grammar_items(item_type)`
       ]
 
       for (const query of queries) {

@@ -1,14 +1,14 @@
-import { vocabulary_item } from '../../../types/vocabulary'
-import { grammar_item } from '../../../types/grammar'
+import { vocabulary_items } from '../../../types/vocabulary'
+import { grammar_items } from '../../../types/grammar'
 import { BookOpen, MessageSquare, BookMarked, Star, BarChart3 } from 'lucide-react'
 
 interface CollectionCardProps {
-  item: vocabulary_item | grammar_item
+  item: vocabulary_items | grammar_items
   isSelected: boolean
   onClick: () => void
 }
 
-function isGrammarItem(item: vocabulary_item | grammar_item): item is grammar_item {
+function isGrammarItem(item: vocabulary_items | grammar_items): item is grammar_items {
   const hasTitle = 'title' in item
   const hasContent = 'content' in item
   const result = hasTitle && !hasContent

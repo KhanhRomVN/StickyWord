@@ -467,6 +467,73 @@ export class CloudDatabaseService {
     }
   }
 
+  async getVocabularyWithDetails(itemId: string): Promise<vocabulary_items | null> {
+    if (!window.api) throw new Error('Electron API not available')
+
+    // 1. Get vocabulary item
+    const itemQuery = 'SELECT * FROM vocabulary_items WHERE id = $1'
+    const itemResult = await window.api.cloudDatabase.query(itemQuery, [itemId])
+
+    if (!itemResult.success || itemResult.rows.length === 0) {
+      return null
+    }
+
+    const item = itemResult.rows[0]
+
+    // 2. Get definitions
+    const defsQuery = `
+      SELECT * FROM vocabulary_definitions 
+      WHERE vocabulary_item_id = $1 
+      ORDER BY created_at ASC
+    `
+    const defsResult = await window.api.cloudDatabase.query(defsQuery, [itemId])
+
+    const definitions = []
+    if (defsResult.success && defsResult.rows.length > 0) {
+      for (const def of defsResult.rows) {
+        // 3. Get examples for this definition
+        const examplesQuery = `
+          SELECT * FROM vocabulary_examples 
+          WHERE definition_id = $1 
+          ORDER BY created_at ASC
+        `
+        const examplesResult = await window.api.cloudDatabase.query(examplesQuery, [def.id])
+
+        const examples =
+          examplesResult.success && examplesResult.rows.length > 0
+            ? examplesResult.rows.map((ex) => ({
+                sentence: ex.sentence || '',
+                translation: ex.translation || ''
+              }))
+            : [{ sentence: '', translation: '' }]
+
+        definitions.push({
+          id: def.id,
+          vocabulary_item_id: def.vocabulary_item_id,
+          meaning: def.meaning || '',
+          translation: def.translation || '',
+          usage_context: def.usage_context || '',
+          word_type: def.word_type || undefined,
+          phrase_type: def.phrase_type || undefined,
+          created_at: def.created_at,
+          examples
+        })
+      }
+    }
+
+    // 4. Merge vào metadata
+    const finalItem: vocabulary_items = {
+      ...item,
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      metadata: {
+        ...(typeof item.metadata === 'object' ? item.metadata : {}),
+        definitions // ✅ Inject definitions từ DB vào metadata
+      }
+    }
+
+    return finalItem
+  }
+
   async saveVocabularyExample(example: {
     id: string
     definition_id: string

@@ -41,7 +41,7 @@ export class SessionService {
     const grammarResult = await window.api.cloudDatabase.query(
       `
       SELECT g.id
-      FROM grammar_item g
+      FROM grammar_items g
       LEFT JOIN grammar_analytics ga ON g.id = ga.grammar_item_id
       ORDER BY 
         COALESCE(ga.mastery_score, 0) ASC,

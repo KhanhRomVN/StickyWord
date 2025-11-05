@@ -471,7 +471,7 @@ Generate NOW. Return ONLY valid JSON, no explanation.`
       return
     }
 
-    const checkQuery = `SELECT id FROM grammar_item WHERE title = $1`
+    const checkQuery = `SELECT id FROM grammar_items WHERE title = $1`
     const checkResult = await window.api.cloudDatabase.query(checkQuery, [collection.title])
 
     if (checkResult.success && checkResult.rows.length > 0) {

@@ -143,7 +143,7 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
 
   const getInitialDefinitions = (): Definition[] => {
     if (currentItem.metadata?.definitions && Array.isArray(currentItem.metadata.definitions)) {
-      return currentItem.metadata.definitions.map((def: any, index: number) => ({
+      const mappedDefs = currentItem.metadata.definitions.map((def: any, index: number) => ({
         id: def.id || `def_${Date.now()}_${index}`,
         vocabulary_item_id: def.vocabulary_item_id || currentItem.id,
         meaning: def.meaning || '',
@@ -159,7 +159,10 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
             }))
           : [{ sentence: '', translation: '' }]
       }))
+
+      return mappedDefs
     }
+
     return [
       {
         id: '1',
@@ -175,27 +178,23 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
     ]
   }
 
-  const [formData, setFormData] = useState<FormData>(() => ({
-    content: currentItem.content,
-    pronunciation: currentItem.pronunciation || '',
-    definitions: getInitialDefinitions(),
-    difficulty_level: currentItem.difficulty_level || 0,
-    frequency_rank: currentItem.frequency_rank || 0,
-    category: currentItem.category || '',
-    tags: currentItem.tags || [],
-    metadata: currentItem.metadata || {}
-  }))
+  const [formData, setFormData] = useState<FormData>(() => {
+    return {
+      content: currentItem.content,
+      pronunciation: currentItem.pronunciation || '',
+      definitions: getInitialDefinitions(),
+      difficulty_level: currentItem.difficulty_level || 0,
+      frequency_rank: currentItem.frequency_rank || 0,
+      category: currentItem.category || '',
+      tags: currentItem.tags || [],
+      metadata: currentItem.metadata || {}
+    }
+  })
 
-  // ✅ State để quản lý tab hiện tại của từng definition (definition | example)
   const [activeDefTab, setActiveDefTab] = useState<Record<number, 'definition' | 'example'>>({})
-
-  // ✅ State để quản lý slide index của example slider
   const [exampleSlideIndex, setExampleSlideIndex] = useState<Record<number, number>>({})
-
-  // ✅ Cache initial definitions - QUAN TRỌNG: phải sync với currentItem
   const [initialDefinitions, setInitialDefinitions] = useState<Definition[]>([])
 
-  // ✅ Effect chính để sync data từ currentItem (bao gồm cả data từ cloud)
   useEffect(() => {
     const newInitialDefs = getInitialDefinitions()
     const newFormData = {
@@ -213,7 +212,7 @@ const WordContentSection = ({ item, activeTab }: WordContentSectionProps) => {
     setFormData(newFormData)
     setActiveDefTab({})
     setExampleSlideIndex({})
-  }, [currentItem.id, currentItem.metadata]) // ✅ Thêm currentItem.metadata vào dependency
+  }, [currentItem.id, currentItem.metadata])
 
   const handleDifficultyChange = (value: string | string[]) => {
     const newValue = parseInt(typeof value === 'string' ? value : value[0])
